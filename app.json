@@ -13,18 +13,30 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.hezron.pixelArtDrawing"
+      "package": "com.hezron.pixelArtDrawing",
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "description": "Quickly generate React Native components with AI"
+    "description": "Quickly generate React Native components with AI",
+    "extra": {
+      "eas": {
+        "projectId": "2275df83-3309-4426-8898-c3eaef869eb8"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2275df83-3309-4426-8898-c3eaef869eb8"
+    }
   }
 }
