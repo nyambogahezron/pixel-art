@@ -21,8 +21,8 @@
 		},
 		"android": {
 			"adaptiveIcon": {
-				"foregroundImage": "./assets/adaptive-icon.png",
-				"backgroundColor": "#ffffff"
+				"foregroundImage": "./assets/adaptive-icon/foreground.png",
+				"backgroundImage": "./assets/adaptive-icon/background.png"
 			},
 			"package": "com.hezron.pixelArtDrawing",
 			"runtimeVersion": "1.0.0"
@@ -42,6 +42,7 @@
 		},
 		"experiments": {
 			"typedRoutes": true
-		}
+		},
+		"plugins": ["expo-router"]
 	}
 }
