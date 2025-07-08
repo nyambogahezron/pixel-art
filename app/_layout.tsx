@@ -4,11 +4,13 @@ import { Toaster } from 'sonner-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import migrations from '../drizzle/migrations';
 import { db } from '../db';
+import WelcomeScreen from './welcome';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,6 +24,8 @@ export default function RootLayout() {
 	useDrizzleStudio(db.$client);
 
 	const [appIsReady, setAppIsReady] = React.useState(false);
+	const [hasSeenWelcome, setHasSeenWelcome] = React.useState(false);
+	const [checkingWelcome, setCheckingWelcome] = React.useState(true);
 
 	React.useEffect(() => {
 		// Set the system UI styles
@@ -29,11 +33,14 @@ export default function RootLayout() {
 
 		async function prepare() {
 			try {
-				// load any resources or data that you need prior to rendering the app
+				// Check if user has seen welcome screen
+				const welcomeSeen = await AsyncStorage.getItem('hasSeenWelcome');
+				setHasSeenWelcome(welcomeSeen === 'true');
 			} catch (e) {
 				console.warn(e);
 			} finally {
 				setAppIsReady(true);
+				setCheckingWelcome(false);
 			}
 		}
 
@@ -47,19 +54,38 @@ export default function RootLayout() {
 	}, [error]);
 
 	const onLayoutRootView = React.useCallback(() => {
-		if (appIsReady) {
+		if (appIsReady && !checkingWelcome) {
 			SplashScreen.hide();
 		}
-	}, [appIsReady]);
+	}, [appIsReady, checkingWelcome]);
 
-	if (!appIsReady || !success) {
+	const handleWelcomeComplete = () => {
+		setHasSeenWelcome(true);
+	};
+
+	if (!appIsReady || !success || checkingWelcome) {
 		return null;
+	}
+
+	if (!hasSeenWelcome) {
+		return (
+			<SafeAreaProvider onLayout={onLayoutRootView} style={{ flex: 1 }}>
+				<WelcomeScreen onComplete={handleWelcomeComplete} />
+			</SafeAreaProvider>
+		);
 	}
 
 	return (
 		<SafeAreaProvider onLayout={onLayoutRootView} style={{ flex: 1 }}>
 			<Toaster />
 			<Stack>
+				<Stack.Screen
+					name='welcome'
+					options={{
+						headerShown: false,
+						title: 'Welcome',
+					}}
+				/>
 				<Stack.Screen
 					name='index'
 					options={{
@@ -70,7 +96,32 @@ export default function RootLayout() {
 				<Stack.Screen
 					name='gallery'
 					options={{
+						headerShown: false,
 						title: 'Gallery',
+						presentation: 'modal',
+					}}
+				/>
+				<Stack.Screen
+					name='menu'
+					options={{
+						headerShown: false,
+						title: 'Menu',
+						presentation: 'modal',
+					}}
+				/>
+				<Stack.Screen
+					name='settings'
+					options={{
+						headerShown: false,
+						title: 'Settings',
+						presentation: 'modal',
+					}}
+				/>
+				<Stack.Screen
+					name='manual'
+					options={{
+						headerShown: false,
+						title: 'Manual',
 						presentation: 'modal',
 					}}
 				/>

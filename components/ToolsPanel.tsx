@@ -5,8 +5,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 interface ToolsPanelProps {
 	symmetryMode: string;
 	onSymmetryChange: (mode: string) => void;
-	scale: number;
-	onScaleChange: (scale: number) => void;
 	selectedTool: string;
 	onToolChange: (tool: string) => void;
 }
@@ -14,13 +12,12 @@ interface ToolsPanelProps {
 export default function ToolsPanel({
 	symmetryMode,
 	onSymmetryChange,
-	scale,
-	onScaleChange,
 	selectedTool,
 	onToolChange,
 }: ToolsPanelProps) {
 	return (
 		<View style={styles.container}>
+			{/* Main Tools */}
 			<View style={styles.toolGroup}>
 				<Pressable
 					style={[styles.tool, selectedTool === 'pencil' && styles.activeTool]}
@@ -28,7 +25,7 @@ export default function ToolsPanel({
 				>
 					<MaterialIcons
 						name='edit'
-						size={24}
+						size={18}
 						color={selectedTool === 'pencil' ? '#000' : '#666'}
 					/>
 				</Pressable>
@@ -38,7 +35,7 @@ export default function ToolsPanel({
 				>
 					<MaterialIcons
 						name='remove'
-						size={24}
+						size={18}
 						color={selectedTool === 'line' ? '#000' : '#666'}
 					/>
 				</Pressable>
@@ -51,7 +48,7 @@ export default function ToolsPanel({
 				>
 					<MaterialIcons
 						name='crop-din'
-						size={24}
+						size={18}
 						color={selectedTool === 'rectangle' ? '#000' : '#666'}
 					/>
 				</Pressable>
@@ -61,7 +58,7 @@ export default function ToolsPanel({
 				>
 					<MaterialIcons
 						name='circle'
-						size={24}
+						size={18}
 						color={selectedTool === 'circle' ? '#000' : '#666'}
 					/>
 				</Pressable>
@@ -71,75 +68,66 @@ export default function ToolsPanel({
 				>
 					<MaterialIcons
 						name='format-color-fill'
-						size={24}
+						size={18}
 						color={selectedTool === 'fill' ? '#000' : '#666'}
 					/>
 				</Pressable>
 			</View>
 
-			<View style={styles.toolGroup}>
+			{/* Symmetry Tools */}
+			<View style={styles.symmetryGroup}>
 				<Pressable
-					style={[styles.tool, symmetryMode === 'none' && styles.activeTool]}
+					style={[
+						styles.smallTool,
+						symmetryMode === 'none' && styles.activeTool,
+					]}
 					onPress={() => onSymmetryChange('none')}
 				>
 					<MaterialIcons
 						name='grid-off'
-						size={24}
+						size={14}
 						color={symmetryMode === 'none' ? '#000' : '#666'}
 					/>
 				</Pressable>
 				<Pressable
 					style={[
-						styles.tool,
+						styles.smallTool,
 						symmetryMode === 'horizontal' && styles.activeTool,
 					]}
 					onPress={() => onSymmetryChange('horizontal')}
 				>
 					<MaterialIcons
 						name='flip'
-						size={24}
+						size={14}
 						color={symmetryMode === 'horizontal' ? '#000' : '#666'}
 					/>
 				</Pressable>
 				<Pressable
 					style={[
-						styles.tool,
+						styles.smallTool,
 						symmetryMode === 'vertical' && styles.activeTool,
 					]}
 					onPress={() => onSymmetryChange('vertical')}
 				>
 					<MaterialIcons
 						name='flip'
-						size={24}
+						size={14}
 						color={symmetryMode === 'vertical' ? '#000' : '#666'}
 						style={{ transform: [{ rotate: '90deg' }] }}
 					/>
 				</Pressable>
 				<Pressable
-					style={[styles.tool, symmetryMode === 'both' && styles.activeTool]}
+					style={[
+						styles.smallTool,
+						symmetryMode === 'both' && styles.activeTool,
+					]}
 					onPress={() => onSymmetryChange('both')}
 				>
 					<MaterialIcons
 						name='crop-free'
-						size={24}
+						size={14}
 						color={symmetryMode === 'both' ? '#000' : '#666'}
 					/>
-				</Pressable>
-			</View>
-
-			<View style={styles.toolGroup}>
-				<Pressable
-					style={styles.tool}
-					onPress={() => onScaleChange(Math.max(0.5, scale - 0.5))}
-				>
-					<MaterialIcons name='zoom-out' size={24} color='#666' />
-				</Pressable>
-				<Text style={styles.scaleText}>{Math.round(scale * 100)}%</Text>
-				<Pressable
-					style={styles.tool}
-					onPress={() => onScaleChange(Math.min(4, scale + 0.5))}
-				>
-					<MaterialIcons name='zoom-in' size={24} color='#666' />
 				</Pressable>
 			</View>
 		</View>
@@ -151,28 +139,40 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		padding: 8,
-		flexWrap: 'wrap',
+		height: 64,
+		paddingHorizontal: 4,
 	},
 	toolGroup: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		marginVertical: 2,
+		flex: 1,
+		justifyContent: 'flex-start',
 	},
-	tool: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
+	symmetryGroup: {
+		flexDirection: 'row',
 		alignItems: 'center',
-		justifyContent: 'center',
+		backgroundColor: '#f5f5f5',
+		borderRadius: 12,
+		padding: 2,
 		marginHorizontal: 4,
 	},
-	activeTool: {
-		backgroundColor: '#f0f0f0',
+	tool: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginHorizontal: 1,
 	},
-	scaleText: {
-		marginHorizontal: 8,
-		fontSize: 16,
-		fontWeight: '500',
+	smallTool: {
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginHorizontal: 1,
+	},
+	activeTool: {
+		backgroundColor: '#d0d0d0',
 	},
 });
