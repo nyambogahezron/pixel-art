@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Link } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import PixelGrid from '../components/PixelGrid';
 import ColorPalette from '../components/ColorPalette';
 import ToolsPanel from '../components/ToolsPanel';
@@ -8,7 +10,7 @@ import AnimationFrames from '../components/AnimationFrames';
 import SaveLoadPanel from '../components/SaveLoadPanel';
 import { Point } from '../utils/shapeUtils';
 
-export default function HomeScreen() {
+export default function IndexScreen() {
 	const [selectedColor, setSelectedColor] = useState('#000000');
 	const [gridSize] = useState({ width: 16, height: 16 });
 	const [scale, setScale] = useState(1);
@@ -97,7 +99,15 @@ export default function HomeScreen() {
 	};
 
 	return (
-		<View style={styles.container}>
+		<SafeAreaView style={styles.container}>
+			<View style={styles.header}>
+				<Link href='/gallery' asChild>
+					<Pressable style={styles.galleryButton}>
+						<MaterialIcons name='photo-library' size={24} color='#007AFF' />
+					</Pressable>
+				</Link>
+			</View>
+
 			<View style={styles.content}>
 				<View style={styles.toolbarContainer}>
 					<View style={styles.toolbarTop}>
@@ -157,13 +167,32 @@ export default function HomeScreen() {
 					/>
 				</View>
 			</View>
-		</View>
+		</SafeAreaView>
 	);
 }
 
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
+		backgroundColor: '#f0f0f0',
+	},
+	header: {
+		height: 60,
+		backgroundColor: 'white',
+		paddingHorizontal: 16,
+		paddingTop: 8,
+		flexDirection: 'row',
+		justifyContent: 'flex-end',
+		alignItems: 'center',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.1,
+		shadowRadius: 2,
+		elevation: 1,
+	},
+	galleryButton: {
+		padding: 8,
+		borderRadius: 8,
 		backgroundColor: '#f0f0f0',
 	},
 	content: {
