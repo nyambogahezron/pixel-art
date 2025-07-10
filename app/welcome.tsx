@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { DrawingService } from '../services/database';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -364,7 +364,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 
 	const handleAgree = async () => {
 		try {
-			await AsyncStorage.setItem('hasSeenWelcome', 'true');
+			await DrawingService.markWelcomeSeen();
 			router.replace('/');
 			onComplete?.();
 		} catch (error) {

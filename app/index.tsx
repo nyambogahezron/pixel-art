@@ -8,6 +8,7 @@ import {
 	TextInput,
 	Text,
 	Alert,
+	ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
@@ -54,6 +55,51 @@ export default function IndexScreen() {
 	const [lastAutoSaveTime, setLastAutoSaveTime] = useState<number>(0);
 	const [isAutoSaving, setIsAutoSaving] = useState(false);
 	const [originalAutoSaveName, setOriginalAutoSaveName] = useState<string>('');
+
+	// App initialization state
+	const [isLoadingLastDrawing, setIsLoadingLastDrawing] = useState(true);
+
+	// Load last working drawing on app start
+	useEffect(() => {
+		const loadLastDrawing = async () => {
+			try {
+				const lastDrawingId = await DrawingService.getLastWorkingDrawingId();
+				if (lastDrawingId) {
+					const drawing = await DrawingService.getDrawingWithParsedData(
+						lastDrawingId
+					);
+					if (drawing) {
+						let loadedFrames: string[][][] = [];
+
+						if (drawing.frames && drawing.frames.length > 0) {
+							loadedFrames = drawing.frames.map((frame: any) => frame.gridData);
+						} else {
+							loadedFrames = [drawing.gridData];
+						}
+
+						handleLoadDrawing(loadedFrames);
+						setCurrentDrawingId(drawing.id);
+						setDrawingName(drawing.name);
+
+						toast.success(`Resumed "${drawing.name}"`, { duration: 2000 });
+					}
+				}
+			} catch (error) {
+				console.error('Error loading last drawing:', error);
+			} finally {
+				setIsLoadingLastDrawing(false);
+			}
+		};
+
+		loadLastDrawing();
+	}, []);
+
+	// Track current drawing as last working drawing
+	useEffect(() => {
+		if (currentDrawingId && !isLoadingLastDrawing) {
+			DrawingService.setLastWorkingDrawing(currentDrawingId);
+		}
+	}, [currentDrawingId, isLoadingLastDrawing]);
 
 	// Auto-save functionality
 	const performAutoSave = async () => {
@@ -297,6 +343,10 @@ export default function IndexScreen() {
 				handleLoadDrawing(loadedFrames);
 				setCurrentDrawingId(drawing.id);
 				setDrawingName(drawing.name);
+
+				// Set this as the last working drawing
+				await DrawingService.setLastWorkingDrawing(drawing.id);
+
 				Alert.alert('Success', `Loaded "${drawing.name}" successfully!`);
 			}
 			setLoadModalVisible(false);
@@ -373,6 +423,10 @@ export default function IndexScreen() {
 		setDrawingName('');
 		const newFrames = DrawService.createNewDrawing(gridSize);
 		handleLoadDrawing(newFrames);
+
+		// Clear last working drawing since we're starting fresh
+		DrawingService.clearLastWorkingDrawing();
+
 		Alert.alert('Success', 'New drawing created!');
 	};
 
@@ -405,220 +459,231 @@ export default function IndexScreen() {
 
 	return (
 		<SafeAreaView style={styles.container}>
-			<View style={styles.header}>
-				<View style={styles.headerLeft}>
-					<Link href='/menu' asChild>
-						<Pressable style={styles.headerButton}>
-							<MaterialIcons name='menu' size={20} color='#007AFF' />
-						</Pressable>
-					</Link>
-					<Pressable style={styles.headerButton} onPress={handleNewDrawing}>
-						<MaterialIcons name='add' size={20} color='#007AFF' />
-					</Pressable>
-					<Pressable
-						style={[
-							styles.headerButton,
-							!hasUnsavedChanges && styles.headerButtonDisabled,
-						]}
-						onPress={handleSaveButtonPress}
-					>
-						<MaterialIcons
-							name='save'
-							size={20}
-							color={hasUnsavedChanges ? '#007AFF' : '#999'}
-						/>
-					</Pressable>
-					<Pressable
-						style={styles.headerButton}
-						onPress={() => setLoadModalVisible(true)}
-					>
-						<MaterialIcons name='folder-open' size={20} color='#007AFF' />
-					</Pressable>
+			{isLoadingLastDrawing ? (
+				<View style={styles.loadingContainer}>
+					<ActivityIndicator size='large' color='#007AFF' />
+					<Text style={styles.loadingText}>Loading your last drawing...</Text>
 				</View>
-				<View style={styles.zoomControls}>
-					<Pressable
-						style={styles.zoomButton}
-						onPress={() => setScale(Math.max(0.5, scale - 0.5))}
-					>
-						<MaterialIcons name='zoom-out' size={16} color='#666' />
-					</Pressable>
-					<Text style={styles.scaleText}>{Math.round(scale * 100)}%</Text>
-					<Pressable
-						style={styles.zoomButton}
-						onPress={() => setScale(Math.min(4, scale + 0.5))}
-					>
-						<MaterialIcons name='zoom-in' size={16} color='#666' />
-					</Pressable>
-				</View>
-				<Link href='/gallery' asChild>
-					<Pressable style={styles.headerButton}>
-						<MaterialIcons name='photo-library' size={20} color='#007AFF' />
-					</Pressable>
-				</Link>
-			</View>
-
-			{/* Drawing title bar */}
-			{(drawingName || currentDrawingId) && (
-				<View style={styles.titleBar}>
-					<Text style={styles.drawingTitle}>
-						{drawingName || 'Untitled'}
-						{drawingName && DrawingService.isAutoSaveName(drawingName) && (
-							<Text style={styles.autoSaveIndicator}> (Auto-saved)</Text>
-						)}
-						{hasUnsavedChanges && (
-							<Text style={styles.unsavedIndicator}> •</Text>
-						)}
-					</Text>
-				</View>
-			)}
-
-			<View style={styles.content}>
-				<View style={styles.toolbarContainer}>
-					<ToolsPanel
-						symmetryMode={symmetryMode}
-						onSymmetryChange={setSymmetryMode}
-						selectedTool={selectedTool}
-						onToolChange={setSelectedTool}
-					/>
-				</View>
-
-				<ScrollView
-					style={styles.canvasContainer}
-					contentContainerStyle={styles.canvasContent}
-					maximumZoomScale={4}
-					minimumZoomScale={0.5}
-				>
-					<PixelGrid
-						grid={frames[currentFrame]}
-						selectedColor={selectedColor}
-						scale={scale}
-						symmetryMode={symmetryMode}
-						selectedTool={selectedTool}
-						onPixelUpdate={updatePixel}
-						onShapeComplete={handleShapeComplete}
-					/>
-				</ScrollView>
-
-				<View style={styles.bottomContainer}>
-					<ColorPalette
-						selectedColor={selectedColor}
-						onColorSelect={setSelectedColor}
-					/>
-					<AnimationFrames
-						frames={frames}
-						currentFrame={currentFrame}
-						onFrameSelect={setCurrentFrame}
-						onAddFrame={(newFrameIndex) => {
-							const newFrames = DrawService.addNewFrame(frames, gridSize);
-							setFrames(newFrames);
-							setCurrentFrame(newFrameIndex);
-							setHasUnsavedChanges(true);
-						}}
-					/>
-				</View>
-			</View>
-
-			{/* Save Modal */}
-			<Modal
-				visible={saveModalVisible}
-				transparent
-				animationType='slide'
-				onRequestClose={() => setSaveModalVisible(false)}
-			>
-				<View style={styles.modalOverlay}>
-					<View style={styles.modalContent}>
-						<Text style={styles.modalTitle}>
-							{currentDrawingId &&
-							DrawingService.isAutoSaveName(originalAutoSaveName)
-								? 'Save As'
-								: currentDrawingId
-								? 'Rename Drawing'
-								: 'Save Drawing'}
-						</Text>
-						{currentDrawingId &&
-							DrawingService.isAutoSaveName(originalAutoSaveName) && (
-								<Text style={styles.autoSaveHint}>
-									This drawing was auto-saved as "{originalAutoSaveName}". Give
-									it a proper name:
-								</Text>
-							)}
-						<TextInput
-							style={styles.input}
-							placeholder='Enter drawing name'
-							value={drawingName}
-							onChangeText={setDrawingName}
-							autoFocus
-						/>
-						<View style={styles.modalButtons}>
-							<Pressable
-								style={[styles.modalButton, styles.cancelButton]}
-								onPress={() => setSaveModalVisible(false)}
-							>
-								<Text style={styles.cancelButtonText}>Cancel</Text>
+			) : (
+				<>
+					<View style={styles.header}>
+						<View style={styles.headerLeft}>
+							<Link href='/menu' asChild>
+								<Pressable style={styles.headerButton}>
+									<MaterialIcons name='menu' size={20} color='#007AFF' />
+								</Pressable>
+							</Link>
+							<Pressable style={styles.headerButton} onPress={handleNewDrawing}>
+								<MaterialIcons name='add' size={20} color='#007AFF' />
 							</Pressable>
 							<Pressable
-								style={[styles.modalButton, styles.saveButton]}
-								onPress={() => handleSaveDrawing()}
+								style={[
+									styles.headerButton,
+									!hasUnsavedChanges && styles.headerButtonDisabled,
+								]}
+								onPress={handleSaveButtonPress}
 							>
-								<Text style={styles.saveButtonText}>
-									{currentDrawingId ? 'Update' : 'Save'}
-								</Text>
+								<MaterialIcons
+									name='save'
+									size={20}
+									color={hasUnsavedChanges ? '#007AFF' : '#999'}
+								/>
+							</Pressable>
+							<Pressable
+								style={styles.headerButton}
+								onPress={() => setLoadModalVisible(true)}
+							>
+								<MaterialIcons name='folder-open' size={20} color='#007AFF' />
 							</Pressable>
 						</View>
+						<View style={styles.zoomControls}>
+							<Pressable
+								style={styles.zoomButton}
+								onPress={() => setScale(Math.max(0.5, scale - 0.5))}
+							>
+								<MaterialIcons name='zoom-out' size={16} color='#666' />
+							</Pressable>
+							<Text style={styles.scaleText}>{Math.round(scale * 100)}%</Text>
+							<Pressable
+								style={styles.zoomButton}
+								onPress={() => setScale(Math.min(4, scale + 0.5))}
+							>
+								<MaterialIcons name='zoom-in' size={16} color='#666' />
+							</Pressable>
+						</View>
+						<Link href='/gallery' asChild>
+							<Pressable style={styles.headerButton}>
+								<MaterialIcons name='photo-library' size={20} color='#007AFF' />
+							</Pressable>
+						</Link>
 					</View>
-				</View>
-			</Modal>
 
-			{/* Load Modal */}
-			<Modal
-				visible={loadModalVisible}
-				transparent
-				animationType='slide'
-				onRequestClose={() => setLoadModalVisible(false)}
-			>
-				<View style={styles.modalOverlay}>
-					<View style={styles.modalContent}>
-						<Text style={styles.modalTitle}>Load Drawing</Text>
-						<ScrollView style={styles.drawingsList}>
-							{savedDrawings.map((drawing) => (
-								<View key={drawing.id} style={styles.drawingItem}>
+					{/* Drawing title bar */}
+					{(drawingName || currentDrawingId) && (
+						<View style={styles.titleBar}>
+							<Text style={styles.drawingTitle}>
+								{drawingName || 'Untitled'}
+								{drawingName && DrawingService.isAutoSaveName(drawingName) && (
+									<Text style={styles.autoSaveIndicator}> (Auto-saved)</Text>
+								)}
+								{hasUnsavedChanges && (
+									<Text style={styles.unsavedIndicator}> •</Text>
+								)}
+							</Text>
+						</View>
+					)}
+
+					<View style={styles.content}>
+						<View style={styles.toolbarContainer}>
+							<ToolsPanel
+								symmetryMode={symmetryMode}
+								onSymmetryChange={setSymmetryMode}
+								selectedTool={selectedTool}
+								onToolChange={setSelectedTool}
+							/>
+						</View>
+
+						<ScrollView
+							style={styles.canvasContainer}
+							contentContainerStyle={styles.canvasContent}
+							maximumZoomScale={4}
+							minimumZoomScale={0.5}
+						>
+							<PixelGrid
+								grid={frames[currentFrame]}
+								selectedColor={selectedColor}
+								scale={scale}
+								symmetryMode={symmetryMode}
+								selectedTool={selectedTool}
+								onPixelUpdate={updatePixel}
+								onShapeComplete={handleShapeComplete}
+							/>
+						</ScrollView>
+
+						<View style={styles.bottomContainer}>
+							<ColorPalette
+								selectedColor={selectedColor}
+								onColorSelect={setSelectedColor}
+							/>
+							<AnimationFrames
+								frames={frames}
+								currentFrame={currentFrame}
+								onFrameSelect={setCurrentFrame}
+								onAddFrame={(newFrameIndex) => {
+									const newFrames = DrawService.addNewFrame(frames, gridSize);
+									setFrames(newFrames);
+									setCurrentFrame(newFrameIndex);
+									setHasUnsavedChanges(true);
+								}}
+							/>
+						</View>
+					</View>
+
+					{/* Save Modal */}
+					<Modal
+						visible={saveModalVisible}
+						transparent
+						animationType='slide'
+						onRequestClose={() => setSaveModalVisible(false)}
+					>
+						<View style={styles.modalOverlay}>
+							<View style={styles.modalContent}>
+								<Text style={styles.modalTitle}>
+									{currentDrawingId &&
+									DrawingService.isAutoSaveName(originalAutoSaveName)
+										? 'Save As'
+										: currentDrawingId
+										? 'Rename Drawing'
+										: 'Save Drawing'}
+								</Text>
+								{currentDrawingId &&
+									DrawingService.isAutoSaveName(originalAutoSaveName) && (
+										<Text style={styles.autoSaveHint}>
+											This drawing was auto-saved as "{originalAutoSaveName}".
+											Give it a proper name:
+										</Text>
+									)}
+								<TextInput
+									style={styles.input}
+									placeholder='Enter drawing name'
+									value={drawingName}
+									onChangeText={setDrawingName}
+									autoFocus
+								/>
+								<View style={styles.modalButtons}>
 									<Pressable
-										style={styles.drawingInfo}
-										onPress={() => handleLoadSpecificDrawing(drawing)}
+										style={[styles.modalButton, styles.cancelButton]}
+										onPress={() => setSaveModalVisible(false)}
 									>
-										<View style={styles.drawingNameContainer}>
-											<Text style={styles.drawingName}>{drawing.name}</Text>
-											{DrawingService.isAutoSaveName(drawing.name) && (
-												<Text style={styles.autoSaveLabel}>Auto-saved</Text>
-											)}
-										</View>
-										<Text style={styles.drawingDate}>
-											{new Date(
-												drawing.updatedAt || drawing.createdAt!
-											).toLocaleDateString()}
+										<Text style={styles.cancelButtonText}>Cancel</Text>
+									</Pressable>
+									<Pressable
+										style={[styles.modalButton, styles.saveButton]}
+										onPress={() => handleSaveDrawing()}
+									>
+										<Text style={styles.saveButtonText}>
+											{currentDrawingId ? 'Update' : 'Save'}
 										</Text>
 									</Pressable>
-									<Pressable
-										style={styles.deleteButton}
-										onPress={() => handleDeleteDrawing(drawing)}
-									>
-										<Text style={styles.deleteButtonText}>×</Text>
-									</Pressable>
 								</View>
-							))}
-							{savedDrawings.length === 0 && (
-								<Text style={styles.emptyText}>No saved drawings found</Text>
-							)}
-						</ScrollView>
-						<Pressable
-							style={[styles.modalButton, styles.cancelButton]}
-							onPress={() => setLoadModalVisible(false)}
-						>
-							<Text style={styles.cancelButtonText}>Close</Text>
-						</Pressable>
-					</View>
-				</View>
-			</Modal>
+							</View>
+						</View>
+					</Modal>
+
+					{/* Load Modal */}
+					<Modal
+						visible={loadModalVisible}
+						transparent
+						animationType='slide'
+						onRequestClose={() => setLoadModalVisible(false)}
+					>
+						<View style={styles.modalOverlay}>
+							<View style={styles.modalContent}>
+								<Text style={styles.modalTitle}>Load Drawing</Text>
+								<ScrollView style={styles.drawingsList}>
+									{savedDrawings.map((drawing) => (
+										<View key={drawing.id} style={styles.drawingItem}>
+											<Pressable
+												style={styles.drawingInfo}
+												onPress={() => handleLoadSpecificDrawing(drawing)}
+											>
+												<View style={styles.drawingNameContainer}>
+													<Text style={styles.drawingName}>{drawing.name}</Text>
+													{DrawingService.isAutoSaveName(drawing.name) && (
+														<Text style={styles.autoSaveLabel}>Auto-saved</Text>
+													)}
+												</View>
+												<Text style={styles.drawingDate}>
+													{new Date(
+														drawing.updatedAt || drawing.createdAt!
+													).toLocaleDateString()}
+												</Text>
+											</Pressable>
+											<Pressable
+												style={styles.deleteButton}
+												onPress={() => handleDeleteDrawing(drawing)}
+											>
+												<Text style={styles.deleteButtonText}>×</Text>
+											</Pressable>
+										</View>
+									))}
+									{savedDrawings.length === 0 && (
+										<Text style={styles.emptyText}>
+											No saved drawings found
+										</Text>
+									)}
+								</ScrollView>
+								<Pressable
+									style={[styles.modalButton, styles.cancelButton]}
+									onPress={() => setLoadModalVisible(false)}
+								>
+									<Text style={styles.cancelButtonText}>Close</Text>
+								</Pressable>
+							</View>
+						</View>
+					</Modal>
+				</>
+			)}
 		</SafeAreaView>
 	);
 }
@@ -627,6 +692,18 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: '#f0f0f0',
+	},
+	loadingContainer: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+		backgroundColor: '#f0f0f0',
+	},
+	loadingText: {
+		marginTop: 16,
+		fontSize: 16,
+		color: '#666',
+		textAlign: 'center',
 	},
 	header: {
 		height: 60,

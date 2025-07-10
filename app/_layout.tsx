@@ -4,13 +4,13 @@ import { Toaster } from 'sonner-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import migrations from '../drizzle/migrations';
 import { db } from '../db';
+import { DrawingService } from '../services/database';
 import WelcomeScreen from './welcome';
 
 SplashScreen.preventAutoHideAsync();
@@ -35,8 +35,8 @@ export default function RootLayout() {
 		async function prepare() {
 			try {
 				// Check if user has seen welcome screen
-				const welcomeSeen = await AsyncStorage.getItem('hasSeenWelcome');
-				setHasSeenWelcome(welcomeSeen === 'true');
+				const welcomeSeen = await DrawingService.hasSeenWelcome();
+				setHasSeenWelcome(welcomeSeen);
 			} catch (e) {
 				console.warn(e);
 			} finally {

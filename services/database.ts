@@ -7,8 +7,62 @@ import {
 	type AnimationFrame,
 } from '../db/schema';
 import { eq, desc, like } from 'drizzle-orm';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export class DrawingService {
+	// Storage keys for user preferences
+	static readonly LAST_DRAWING_KEY = 'lastWorkingDrawingId';
+	static readonly HAS_SEEN_WELCOME_KEY = 'hasSeenWelcome';
+
+	// Store the last drawing being worked on
+	static async setLastWorkingDrawing(drawingId: number): Promise<void> {
+		try {
+			await AsyncStorage.setItem(this.LAST_DRAWING_KEY, drawingId.toString());
+		} catch (error) {
+			console.error('Error saving last working drawing:', error);
+		}
+	}
+
+	// Get the last drawing being worked on
+	static async getLastWorkingDrawingId(): Promise<number | null> {
+		try {
+			const drawingId = await AsyncStorage.getItem(this.LAST_DRAWING_KEY);
+			return drawingId ? parseInt(drawingId, 10) : null;
+		} catch (error) {
+			console.error('Error getting last working drawing:', error);
+			return null;
+		}
+	}
+
+	// Clear the last working drawing (when user creates new or explicitly chooses different)
+	static async clearLastWorkingDrawing(): Promise<void> {
+		try {
+			await AsyncStorage.removeItem(this.LAST_DRAWING_KEY);
+		} catch (error) {
+			console.error('Error clearing last working drawing:', error);
+		}
+	}
+
+	// Check if user has seen welcome screen
+	static async hasSeenWelcome(): Promise<boolean> {
+		try {
+			const seen = await AsyncStorage.getItem(this.HAS_SEEN_WELCOME_KEY);
+			return seen === 'true';
+		} catch (error) {
+			console.error('Error checking welcome status:', error);
+			return false;
+		}
+	}
+
+	// Mark welcome screen as seen
+	static async markWelcomeSeen(): Promise<void> {
+		try {
+			await AsyncStorage.setItem(this.HAS_SEEN_WELCOME_KEY, 'true');
+		} catch (error) {
+			console.error('Error marking welcome seen:', error);
+		}
+	}
+
 	// Generate next available auto-save name
 	static async generateAutoSaveName(): Promise<string> {
 		try {
