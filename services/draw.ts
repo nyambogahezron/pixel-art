@@ -8,6 +8,17 @@ export interface GridSize {
 export type SymmetryMode = 'none' | 'horizontal' | 'vertical' | 'both';
 
 export class DrawService {
+	// Auto-save constants
+	static readonly AUTO_SAVE_DELAY = 5000; // 5 seconds after last change
+	static readonly AUTO_SAVE_INTERVAL = 30000; // 30 seconds minimum between auto-saves
+
+	/**
+	 * Checks if enough time has passed since last auto-save for a new auto-save
+	 */
+	static shouldAutoSave(lastAutoSaveTime: number): boolean {
+		return Date.now() - lastAutoSaveTime >= this.AUTO_SAVE_INTERVAL;
+	}
+
 	/**
 	 * Updates a pixel in the grid with symmetry support
 	 */

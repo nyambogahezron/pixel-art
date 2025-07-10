@@ -5,7 +5,7 @@ interface AnimationFramesProps {
 	frames: string[][][];
 	currentFrame: number;
 	onFrameSelect: (index: number) => void;
-	onAddFrame: () => void;
+	onAddFrame: (newFrameIndex: number) => void;
 }
 
 export default function AnimationFrames({
@@ -15,9 +15,7 @@ export default function AnimationFrames({
 	onAddFrame,
 }: AnimationFramesProps) {
 	const [isPlaying, setIsPlaying] = useState(false);
-	const [frameInterval, setFrameInterval] = useState<NodeJS.Timeout | null>(
-		null
-	);
+	const [frameInterval, setFrameInterval] = useState<number | null>(null);
 
 	useEffect(() => {
 		if (isPlaying) {
@@ -52,7 +50,10 @@ export default function AnimationFrames({
 						<Text style={styles.frameText}>{index + 1}</Text>
 					</Pressable>
 				))}
-				<Pressable style={styles.addFrame} onPress={onAddFrame}>
+				<Pressable
+					style={styles.addFrame}
+					onPress={() => onAddFrame(frames.length)}
+				>
 					<MaterialIcons name='add' size={24} color='#666' />
 				</Pressable>
 			</ScrollView>

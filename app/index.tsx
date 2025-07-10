@@ -47,6 +47,96 @@ export default function IndexScreen() {
 	);
 	const [pendingNewDrawing, setPendingNewDrawing] = useState(false);
 
+	// Auto-save state
+	const [autoSaveTimeoutId, setAutoSaveTimeoutId] = useState<number | null>(
+		null
+	);
+	const [lastAutoSaveTime, setLastAutoSaveTime] = useState<number>(0);
+	const [isAutoSaving, setIsAutoSaving] = useState(false);
+	const [originalAutoSaveName, setOriginalAutoSaveName] = useState<string>('');
+
+	// Auto-save functionality
+	const performAutoSave = async () => {
+		if (isAutoSaving || !hasUnsavedChanges) return;
+
+		// Don't auto-save if user is currently saving manually
+		if (saveModalVisible) return;
+
+		// Check if enough time has passed since last auto-save
+		if (!DrawService.shouldAutoSave(lastAutoSaveTime)) return;
+
+		setIsAutoSaving(true);
+		try {
+			if (currentDrawingId) {
+				// Update existing drawing (including auto-saved ones)
+				await DrawingService.updateDrawing(
+					currentDrawingId,
+					{
+						name: drawingName || (await DrawingService.generateAutoSaveName()),
+						width: gridSize.width,
+						height: gridSize.height,
+					},
+					frames
+				);
+
+				// Update drawing name if it was empty (shouldn't happen but just in case)
+				if (!drawingName) {
+					const updatedDrawing = await DrawingService.getDrawing(
+						currentDrawingId
+					);
+					if (updatedDrawing) {
+						setDrawingName(updatedDrawing.name);
+					}
+				}
+			} else {
+				// Create new auto-save
+				const autoSavedDrawing = await DrawingService.autoSave(
+					frames[currentFrame],
+					gridSize.width,
+					gridSize.height,
+					frames
+				);
+				setCurrentDrawingId(autoSavedDrawing.id);
+				setDrawingName(autoSavedDrawing.name);
+			}
+
+			setSavedFramesSnapshot(DrawService.createFramesSnapshot(frames));
+			setHasUnsavedChanges(false);
+			setLastAutoSaveTime(Date.now());
+
+			// Show subtle notification for auto-save
+			toast.success('Auto-saved', { duration: 1000 });
+		} catch (error) {
+			console.error('Auto-save failed:', error);
+			// Don't show error toast for auto-save failures to avoid disrupting user
+		} finally {
+			setIsAutoSaving(false);
+		}
+	};
+
+	const scheduleAutoSave = () => {
+		// Clear existing timeout
+		if (autoSaveTimeoutId) {
+			clearTimeout(autoSaveTimeoutId);
+		}
+
+		// Schedule new auto-save
+		const timeoutId = setTimeout(() => {
+			performAutoSave();
+		}, DrawService.AUTO_SAVE_DELAY);
+
+		setAutoSaveTimeoutId(timeoutId);
+	};
+
+	// Cleanup auto-save timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (autoSaveTimeoutId) {
+				clearTimeout(autoSaveTimeoutId);
+			}
+		};
+	}, [autoSaveTimeoutId]);
+
 	const handleLoadDrawing = (loadedFrames: string[][][]) => {
 		setFrames(loadedFrames);
 		setCurrentFrame(0);
@@ -58,6 +148,11 @@ export default function IndexScreen() {
 	const checkForChanges = () => {
 		const hasChanges = DrawService.hasChanges(frames, savedFramesSnapshot);
 		setHasUnsavedChanges(hasChanges);
+
+		// Schedule auto-save if there are changes
+		if (hasChanges) {
+			scheduleAutoSave();
+		}
 	};
 
 	// Check for changes whenever frames change
@@ -126,18 +221,34 @@ export default function IndexScreen() {
 		}
 	};
 
+	const handleSaveModalOpen = () => {
+		// Store the original name for the hint message
+		setOriginalAutoSaveName(drawingName);
+
+		// If this is an auto-saved drawing, clear the name so user can enter a proper name
+		if (drawingName && DrawingService.isAutoSaveName(drawingName)) {
+			setDrawingName('');
+		}
+
+		setSaveModalVisible(true);
+	};
+
 	const handleSaveButtonPress = () => {
 		if (!hasUnsavedChanges) {
 			toast.info('No changes to save');
 			return;
 		}
 
-		if (currentDrawingId && drawingName) {
-			// Existing drawing - save directly without modal
+		if (
+			currentDrawingId &&
+			drawingName &&
+			!DrawingService.isAutoSaveName(drawingName)
+		) {
+			// Existing drawing with proper name - save directly without modal
 			handleQuickSave();
 		} else {
-			// New drawing - show modal for name input
-			setSaveModalVisible(true);
+			// New drawing or auto-saved drawing - show modal for name input
+			handleSaveModalOpen();
 		}
 	};
 
@@ -346,6 +457,21 @@ export default function IndexScreen() {
 				</Link>
 			</View>
 
+			{/* Drawing title bar */}
+			{(drawingName || currentDrawingId) && (
+				<View style={styles.titleBar}>
+					<Text style={styles.drawingTitle}>
+						{drawingName || 'Untitled'}
+						{drawingName && DrawingService.isAutoSaveName(drawingName) && (
+							<Text style={styles.autoSaveIndicator}> (Auto-saved)</Text>
+						)}
+						{hasUnsavedChanges && (
+							<Text style={styles.unsavedIndicator}> •</Text>
+						)}
+					</Text>
+				</View>
+			)}
+
 			<View style={styles.content}>
 				<View style={styles.toolbarContainer}>
 					<ToolsPanel
@@ -382,9 +508,10 @@ export default function IndexScreen() {
 						frames={frames}
 						currentFrame={currentFrame}
 						onFrameSelect={setCurrentFrame}
-						onAddFrame={() => {
+						onAddFrame={(newFrameIndex) => {
 							const newFrames = DrawService.addNewFrame(frames, gridSize);
 							setFrames(newFrames);
+							setCurrentFrame(newFrameIndex);
 							setHasUnsavedChanges(true);
 						}}
 					/>
@@ -400,7 +527,21 @@ export default function IndexScreen() {
 			>
 				<View style={styles.modalOverlay}>
 					<View style={styles.modalContent}>
-						<Text style={styles.modalTitle}>Save Drawing</Text>
+						<Text style={styles.modalTitle}>
+							{currentDrawingId &&
+							DrawingService.isAutoSaveName(originalAutoSaveName)
+								? 'Save As'
+								: currentDrawingId
+								? 'Rename Drawing'
+								: 'Save Drawing'}
+						</Text>
+						{currentDrawingId &&
+							DrawingService.isAutoSaveName(originalAutoSaveName) && (
+								<Text style={styles.autoSaveHint}>
+									This drawing was auto-saved as "{originalAutoSaveName}". Give
+									it a proper name:
+								</Text>
+							)}
 						<TextInput
 							style={styles.input}
 							placeholder='Enter drawing name'
@@ -445,7 +586,12 @@ export default function IndexScreen() {
 										style={styles.drawingInfo}
 										onPress={() => handleLoadSpecificDrawing(drawing)}
 									>
-										<Text style={styles.drawingName}>{drawing.name}</Text>
+										<View style={styles.drawingNameContainer}>
+											<Text style={styles.drawingName}>{drawing.name}</Text>
+											{DrawingService.isAutoSaveName(drawing.name) && (
+												<Text style={styles.autoSaveLabel}>Auto-saved</Text>
+											)}
+										</View>
 										<Text style={styles.drawingDate}>
 											{new Date(
 												drawing.updatedAt || drawing.createdAt!
@@ -574,6 +720,29 @@ const styles = StyleSheet.create({
 		shadowRadius: 4,
 		elevation: 2,
 	},
+	titleBar: {
+		backgroundColor: '#f8f9fa',
+		paddingHorizontal: 16,
+		paddingVertical: 8,
+		borderBottomWidth: 1,
+		borderBottomColor: '#e0e0e0',
+	},
+	drawingTitle: {
+		fontSize: 16,
+		fontWeight: '500',
+		color: '#333',
+		textAlign: 'center',
+	},
+	autoSaveIndicator: {
+		fontSize: 12,
+		color: '#007AFF',
+		fontWeight: 'normal',
+	},
+	unsavedIndicator: {
+		fontSize: 20,
+		color: '#ff6b35',
+		fontWeight: 'bold',
+	},
 	// Modal styles
 	modalOverlay: {
 		flex: 1,
@@ -593,6 +762,13 @@ const styles = StyleSheet.create({
 		fontWeight: 'bold',
 		marginBottom: 16,
 		textAlign: 'center',
+	},
+	autoSaveHint: {
+		fontSize: 14,
+		color: '#666',
+		marginBottom: 12,
+		textAlign: 'center',
+		fontStyle: 'italic',
 	},
 	input: {
 		borderWidth: 1,
@@ -642,10 +818,24 @@ const styles = StyleSheet.create({
 	drawingInfo: {
 		flex: 1,
 	},
+	drawingNameContainer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		marginBottom: 4,
+	},
 	drawingName: {
 		fontSize: 16,
 		fontWeight: '600',
-		marginBottom: 4,
+		flex: 1,
+	},
+	autoSaveLabel: {
+		fontSize: 10,
+		color: '#007AFF',
+		backgroundColor: '#E8F4FF',
+		paddingHorizontal: 6,
+		paddingVertical: 2,
+		borderRadius: 4,
+		marginLeft: 8,
 	},
 	drawingDate: {
 		fontSize: 12,

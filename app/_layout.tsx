@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
@@ -77,55 +78,57 @@ export default function RootLayout() {
 
 	return (
 		<SafeAreaProvider onLayout={onLayoutRootView} style={{ flex: 1 }}>
-			<Toaster />
-			<Stack>
-				<Stack.Screen
-					name='welcome'
-					options={{
-						headerShown: false,
-						title: 'Welcome',
-					}}
-				/>
-				<Stack.Screen
-					name='index'
-					options={{
-						title: 'Pixel Art Studio',
-						headerShown: false,
-					}}
-				/>
-				<Stack.Screen
-					name='gallery'
-					options={{
-						headerShown: false,
-						title: 'Gallery',
-						presentation: 'modal',
-					}}
-				/>
-				<Stack.Screen
-					name='menu'
-					options={{
-						headerShown: false,
-						title: 'Menu',
-						presentation: 'modal',
-					}}
-				/>
-				<Stack.Screen
-					name='settings'
-					options={{
-						headerShown: false,
-						title: 'Settings',
-						presentation: 'modal',
-					}}
-				/>
-				<Stack.Screen
-					name='manual'
-					options={{
-						headerShown: false,
-						title: 'Manual',
-						presentation: 'modal',
-					}}
-				/>
-			</Stack>
+			<GestureHandlerRootView style={{ flex: 1 }}>
+				<Toaster />
+				<Stack>
+					<Stack.Screen
+						name='welcome'
+						options={{
+							headerShown: false,
+							title: 'Welcome',
+						}}
+					/>
+					<Stack.Screen
+						name='index'
+						options={{
+							title: 'Pixel Art Studio',
+							headerShown: false,
+						}}
+					/>
+					<Stack.Screen
+						name='gallery'
+						options={{
+							headerShown: false,
+							title: 'Gallery',
+							presentation: 'modal',
+						}}
+					/>
+					<Stack.Screen
+						name='menu'
+						options={{
+							headerShown: false,
+							title: 'Menu',
+							presentation: 'modal',
+						}}
+					/>
+					<Stack.Screen
+						name='settings'
+						options={{
+							headerShown: false,
+							title: 'Settings',
+							presentation: 'modal',
+						}}
+					/>
+					<Stack.Screen
+						name='manual'
+						options={{
+							headerShown: false,
+							title: 'Manual',
+							presentation: 'modal',
+						}}
+					/>
+				</Stack>
+			</GestureHandlerRootView>
 		</SafeAreaProvider>
 	);
 }

@@ -6,9 +6,55 @@ import {
 	type NewDrawing,
 	type AnimationFrame,
 } from '../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, like } from 'drizzle-orm';
 
 export class DrawingService {
+	// Generate next available auto-save name
+	static async generateAutoSaveName(): Promise<string> {
+		try {
+			const autoSaveDrawings = await db
+				.select()
+				.from(drawings)
+				.where(like(drawings.name, 'Unsaved %'))
+				.orderBy(desc(drawings.name));
+
+			if (autoSaveDrawings.length === 0) {
+				return 'Unsaved 1';
+			}
+
+			// Extract numbers from existing auto-save names
+			const numbers = autoSaveDrawings
+				.map((drawing) => {
+					const match = drawing.name.match(/^Unsaved (\d+)$/);
+					return match ? parseInt(match[1], 10) : 0;
+				})
+				.filter((num) => num > 0)
+				.sort((a, b) => b - a);
+
+			const nextNumber = numbers.length > 0 ? numbers[0] + 1 : 1;
+			return `Unsaved ${nextNumber}`;
+		} catch (error) {
+			console.error('Error generating auto-save name:', error);
+			return `Unsaved ${Date.now()}`;
+		}
+	}
+
+	// Auto-save a drawing with generated name
+	static async autoSave(
+		gridData: string[][],
+		width: number,
+		height: number,
+		frames?: string[][][]
+	): Promise<Drawing> {
+		const autoSaveName = await this.generateAutoSaveName();
+		return this.saveDrawing(autoSaveName, gridData, width, height, frames);
+	}
+
+	// Check if a drawing name is an auto-save name
+	static isAutoSaveName(name: string): boolean {
+		return /^Unsaved \d+$/.test(name);
+	}
+
 	// Save a new drawing
 	static async saveDrawing(
 		name: string,
