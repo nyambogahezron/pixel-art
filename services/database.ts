@@ -6,15 +6,15 @@ import {
 	type NewDrawing,
 	type AnimationFrame,
 } from '../db/schema';
-import { eq, desc, like } from 'drizzle-orm';
+import { eq, desc, like, and, isNull } from 'drizzle-orm';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserService } from './userService';
 
 export class DrawingService {
 	// Storage keys for user preferences
 	static readonly LAST_DRAWING_KEY = 'lastWorkingDrawingId';
 	static readonly HAS_SEEN_WELCOME_KEY = 'hasSeenWelcome';
 
-	// Store the last drawing being worked on
 	static async setLastWorkingDrawing(drawingId: number): Promise<void> {
 		try {
 			await AsyncStorage.setItem(this.LAST_DRAWING_KEY, drawingId.toString());
@@ -23,7 +23,6 @@ export class DrawingService {
 		}
 	}
 
-	// Get the last drawing being worked on
 	static async getLastWorkingDrawingId(): Promise<number | null> {
 		try {
 			const drawingId = await AsyncStorage.getItem(this.LAST_DRAWING_KEY);
@@ -34,7 +33,6 @@ export class DrawingService {
 		}
 	}
 
-	// Clear the last working drawing (when user creates new or explicitly chooses different)
 	static async clearLastWorkingDrawing(): Promise<void> {
 		try {
 			await AsyncStorage.removeItem(this.LAST_DRAWING_KEY);
@@ -43,10 +41,10 @@ export class DrawingService {
 		}
 	}
 
-	// Check if user has seen welcome screen
 	static async hasSeenWelcome(): Promise<boolean> {
 		try {
 			const seen = await AsyncStorage.getItem(this.HAS_SEEN_WELCOME_KEY);
+			console.log('Checking welcome status:', seen); // Debug log
 			return seen === 'true';
 		} catch (error) {
 			console.error('Error checking welcome status:', error);
@@ -54,16 +52,16 @@ export class DrawingService {
 		}
 	}
 
-	// Mark welcome screen as seen
 	static async markWelcomeSeen(): Promise<void> {
 		try {
 			await AsyncStorage.setItem(this.HAS_SEEN_WELCOME_KEY, 'true');
+			console.log('Welcome marked as seen'); // Debug log
 		} catch (error) {
 			console.error('Error marking welcome seen:', error);
+			throw error; // Re-throw to handle in calling code
 		}
 	}
 
-	// Generate next available auto-save name
 	static async generateAutoSaveName(): Promise<string> {
 		try {
 			const autoSaveDrawings = await db
@@ -93,7 +91,6 @@ export class DrawingService {
 		}
 	}
 
-	// Auto-save a drawing with generated name
 	static async autoSave(
 		gridData: string[][],
 		width: number,
@@ -104,12 +101,10 @@ export class DrawingService {
 		return this.saveDrawing(autoSaveName, gridData, width, height, frames);
 	}
 
-	// Check if a drawing name is an auto-save name
 	static isAutoSaveName(name: string): boolean {
 		return /^Unsaved \d+$/.test(name);
 	}
 
-	// Save a new drawing
 	static async saveDrawing(
 		name: string,
 		gridData: string[][],
@@ -119,6 +114,10 @@ export class DrawingService {
 	): Promise<Drawing> {
 		const gridDataString = JSON.stringify(gridData);
 
+		// Get current user
+		const currentUser = await UserService.getCurrentUser();
+		const userId = currentUser?.id || null;
+
 		const [drawing] = await db
 			.insert(drawings)
 			.values({
@@ -126,6 +125,7 @@ export class DrawingService {
 				gridData: gridDataString,
 				width,
 				height,
+				userId,
 			})
 			.returning();
 
@@ -143,7 +143,6 @@ export class DrawingService {
 		return drawing;
 	}
 
-	// Update an existing drawing
 	static async updateDrawing(
 		id: number,
 		updates: Partial<
@@ -185,10 +184,41 @@ export class DrawingService {
 
 	// Get all drawings
 	static async getAllDrawings(): Promise<Drawing[]> {
-		return await db.select().from(drawings).orderBy(desc(drawings.updatedAt));
+		const currentUser = await UserService.getCurrentUser();
+
+		if (currentUser) {
+			// Return drawings for the logged-in user
+			return await db
+				.select()
+				.from(drawings)
+				.where(eq(drawings.userId, currentUser.id))
+				.orderBy(desc(drawings.updatedAt));
+		} else {
+			// Return drawings without a user (for backward compatibility)
+			return await db
+				.select()
+				.from(drawings)
+				.where(isNull(drawings.userId))
+				.orderBy(desc(drawings.updatedAt));
+		}
 	}
 
-	// Get a specific drawing by ID
+	static async getUserDrawings(userId: number): Promise<Drawing[]> {
+		return await db
+			.select()
+			.from(drawings)
+			.where(eq(drawings.userId, userId))
+			.orderBy(desc(drawings.updatedAt));
+	}
+
+	static async getGuestDrawings(): Promise<Drawing[]> {
+		return await db
+			.select()
+			.from(drawings)
+			.where(isNull(drawings.userId))
+			.orderBy(desc(drawings.updatedAt));
+	}
+
 	static async getDrawing(id: number): Promise<Drawing | null> {
 		const [drawing] = await db
 			.select()
@@ -197,7 +227,6 @@ export class DrawingService {
 		return drawing || null;
 	}
 
-	// Get animation frames for a drawing
 	static async getAnimationFrames(
 		drawingId: number
 	): Promise<AnimationFrame[]> {
@@ -208,13 +237,11 @@ export class DrawingService {
 			.orderBy(animationFrames.frameNumber);
 	}
 
-	// Delete a drawing
 	static async deleteDrawing(id: number): Promise<boolean> {
 		const result = await db.delete(drawings).where(eq(drawings.id, id));
 		return result.changes > 0;
 	}
 
-	// Get drawing with parsed grid data
 	static async getDrawingWithParsedData(id: number) {
 		const drawing = await this.getDrawing(id);
 		if (!drawing) return null;

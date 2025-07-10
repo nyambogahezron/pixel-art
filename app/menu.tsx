@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -9,14 +9,41 @@ import {
 	Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserService } from '../services/userService';
+import { User } from '../db/schema';
 
 export default function MenuScreen() {
+	const [currentUser, setCurrentUser] = useState<User | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+
 	const appVersion = Constants.expoConfig?.version || '1.0.0';
 	const appName = Constants.expoConfig?.name || 'Pixel Art';
+
+	useEffect(() => {
+		loadCurrentUser();
+	}, []);
+
+	// Reload user data when screen comes into focus (e.g., returning from auth screen)
+	useFocusEffect(
+		React.useCallback(() => {
+			loadCurrentUser();
+		}, [])
+	);
+
+	const loadCurrentUser = async () => {
+		try {
+			const user = await UserService.getCurrentUser();
+			setCurrentUser(user);
+		} catch (error) {
+			console.error('Error loading user:', error);
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	const handleDeveloperLink = () => {
 		Alert.alert(
@@ -44,6 +71,43 @@ export default function MenuScreen() {
 		router.push('/manual');
 	};
 
+	const handleAccount = () => {
+		if (currentUser) {
+			// Show account management options
+			Alert.alert('Account', `Logged in as ${currentUser.name}`, [
+				{ text: 'View Profile', onPress: () => router.push('/profile') },
+				{
+					text: 'Logout',
+					style: 'destructive',
+					onPress: handleLogout,
+				},
+				{ text: 'Cancel', style: 'cancel' },
+			]);
+		} else {
+			// Navigate to login/signup
+			router.push('/auth');
+		}
+	};
+
+	const handleLogout = async () => {
+		Alert.alert('Logout', 'Are you sure you want to logout?', [
+			{ text: 'Cancel', style: 'cancel' },
+			{
+				text: 'Logout',
+				style: 'destructive',
+				onPress: async () => {
+					try {
+						await UserService.logout();
+						setCurrentUser(null);
+						Alert.alert('Success', 'Logged out successfully');
+					} catch (error) {
+						Alert.alert('Error', 'Failed to logout');
+					}
+				},
+			},
+		]);
+	};
+
 	const handleResetWelcome = async () => {
 		Alert.alert(
 			'Reset Welcome Screen',
@@ -69,12 +133,19 @@ export default function MenuScreen() {
 	};
 
 	const getUserInfo = () => {
-		// For now, return default user info
-		// In a real app, this would come from user authentication
+		if (currentUser) {
+			return {
+				name: currentUser.name,
+				email: currentUser.email,
+				joinDate: UserService.formatJoinDate(currentUser.createdAt || ''),
+			};
+		}
+
+		// Default for non-logged-in users
 		return {
-			name: 'Pixel Artist',
-			email: 'artist@example.com',
-			joinDate: 'January 2025',
+			name: 'Guest User',
+			email: 'Sign in to save your work',
+			joinDate: 'Not logged in',
 		};
 	};
 
@@ -97,13 +168,34 @@ export default function MenuScreen() {
 				{/* User Info Section */}
 				<View style={styles.userSection}>
 					<View style={styles.avatarContainer}>
-						<MaterialIcons name='account-circle' size={80} color='#007AFF' />
+						<MaterialIcons
+							name={currentUser ? 'account-circle' : 'account-circle'}
+							size={80}
+							color={currentUser ? '#007AFF' : '#ccc'}
+						/>
 					</View>
 					<Text style={styles.userName}>{userInfo.name}</Text>
 					<Text style={styles.userEmail}>{userInfo.email}</Text>
 					<Text style={styles.userJoinDate}>
-						Member since {userInfo.joinDate}
+						{currentUser
+							? `Member since ${userInfo.joinDate}`
+							: userInfo.joinDate}
 					</Text>
+
+					{/* Account Button */}
+					<Pressable
+						style={[styles.accountButton, !currentUser && styles.loginButton]}
+						onPress={handleAccount}
+					>
+						<MaterialIcons
+							name={currentUser ? 'settings' : 'login'}
+							size={20}
+							color='white'
+						/>
+						<Text style={styles.accountButtonText}>
+							{currentUser ? 'Account Settings' : 'Login / Sign Up'}
+						</Text>
+					</Pressable>
 				</View>
 
 				{/* Menu Items */}
@@ -219,6 +311,24 @@ const styles = StyleSheet.create({
 	userJoinDate: {
 		fontSize: 14,
 		color: '#999',
+	},
+	accountButton: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		backgroundColor: '#007AFF',
+		paddingHorizontal: 20,
+		paddingVertical: 12,
+		borderRadius: 8,
+		marginTop: 16,
+	},
+	loginButton: {
+		backgroundColor: '#28a745',
+	},
+	accountButtonText: {
+		color: 'white',
+		fontSize: 16,
+		fontWeight: '600',
+		marginLeft: 8,
 	},
 	menuSection: {
 		backgroundColor: 'white',

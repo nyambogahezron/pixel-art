@@ -6,16 +6,37 @@ import {
 	ScrollView,
 	Pressable,
 	Switch,
+	Modal,
+	Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { UserService } from '../services/userService';
+import ChangePassword from '../components/ChangePassword';
+import DeleteAccount from '../components/DeleteAccount';
 
 export default function SettingsScreen() {
 	const [darkMode, setDarkMode] = React.useState(false);
 	const [autoSave, setAutoSave] = React.useState(true);
 	const [showGrid, setShowGrid] = React.useState(true);
 	const [soundEffects, setSoundEffects] = React.useState(false);
+	const [showChangePassword, setShowChangePassword] = React.useState(false);
+	const [showDeleteAccount, setShowDeleteAccount] = React.useState(false);
+	const [currentUser, setCurrentUser] = React.useState<any>(null);
+
+	React.useEffect(() => {
+		loadCurrentUser();
+	}, []);
+
+	const loadCurrentUser = async () => {
+		try {
+			const user = await UserService.getCurrentUser();
+			setCurrentUser(user);
+		} catch (error) {
+			console.error('Error loading current user:', error);
+		}
+	};
 
 	return (
 		<SafeAreaView style={styles.container}>
@@ -85,7 +106,7 @@ export default function SettingsScreen() {
 							<View style={styles.settingTextContainer}>
 								<Text style={styles.settingText}>Sound Effects</Text>
 								<Text style={styles.settingDescription}>
-									Play sounds for actions
+									Play drawing sounds
 								</Text>
 							</View>
 						</View>
@@ -93,7 +114,51 @@ export default function SettingsScreen() {
 					</View>
 				</View>
 
-				{/* About Section */}
+				{/* Security Section */}
+				{currentUser && (
+					<View style={styles.section}>
+						<Text style={styles.sectionTitle}>Security</Text>
+						<Pressable
+							style={styles.settingItem}
+							onPress={() => setShowChangePassword(true)}
+						>
+							<View style={styles.settingLeft}>
+								<MaterialIcons name='lock' size={24} color='#666' />
+								<View style={styles.settingTextContainer}>
+									<Text style={styles.settingText}>Change Password</Text>
+									<Text style={styles.settingDescription}>
+										Update your account password
+									</Text>
+								</View>
+							</View>
+							<MaterialIcons name='chevron-right' size={24} color='#ccc' />
+						</Pressable>
+
+						<Pressable
+							style={[styles.settingItem, styles.dangerItem]}
+							onPress={() => setShowDeleteAccount(true)}
+						>
+							<View style={styles.settingLeft}>
+								<MaterialIcons
+									name='delete-forever'
+									size={24}
+									color='#FF3B30'
+								/>
+								<View style={styles.settingTextContainer}>
+									<Text style={[styles.settingText, styles.dangerText]}>
+										Delete Account
+									</Text>
+									<Text style={styles.settingDescription}>
+										Permanently delete your account
+									</Text>
+								</View>
+							</View>
+							<MaterialIcons name='chevron-right' size={24} color='#FF3B30' />
+						</Pressable>
+					</View>
+				)}
+
+				{/* Info Section */}
 				<View style={styles.section}>
 					<Text style={styles.sectionTitle}>About</Text>
 					<Pressable style={styles.settingItem}>
@@ -108,6 +173,41 @@ export default function SettingsScreen() {
 					</Pressable>
 				</View>
 			</ScrollView>
+
+			{/* Change Password Modal */}
+			<Modal
+				animationType='slide'
+				transparent={true}
+				visible={showChangePassword}
+				onRequestClose={() => setShowChangePassword(false)}
+			>
+				<ChangePassword
+					onClose={() => setShowChangePassword(false)}
+					onSuccess={() => {
+						setShowChangePassword(false);
+						Alert.alert('Success', 'Password changed successfully!');
+					}}
+					userId={currentUser?.id}
+				/>
+			</Modal>
+
+			{/* Delete Account Modal */}
+			<Modal
+				animationType='slide'
+				transparent={true}
+				visible={showDeleteAccount}
+				onRequestClose={() => setShowDeleteAccount(false)}
+			>
+				<DeleteAccount
+					onClose={() => setShowDeleteAccount(false)}
+					onSuccess={() => {
+						setShowDeleteAccount(false);
+						router.replace('/auth');
+					}}
+					userId={currentUser?.id}
+					userEmail={currentUser?.email}
+				/>
+			</Modal>
 		</SafeAreaView>
 	);
 }
@@ -193,5 +293,12 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		color: '#666',
 		marginTop: 2,
+	},
+	dangerItem: {
+		borderLeftWidth: 3,
+		borderLeftColor: '#FF3B30',
+	},
+	dangerText: {
+		color: '#FF3B30',
 	},
 });

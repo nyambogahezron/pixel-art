@@ -60,8 +60,16 @@ export default function RootLayout() {
 		}
 	}, [appIsReady, checkingWelcome]);
 
-	const handleWelcomeComplete = () => {
-		setHasSeenWelcome(true);
+	const handleWelcomeComplete = async () => {
+		// Ensure the welcome seen flag is saved before updating state
+		try {
+			await DrawingService.markWelcomeSeen();
+			setHasSeenWelcome(true);
+		} catch (error) {
+			console.error('Error saving welcome state:', error);
+			// Still update state to prevent endless loop
+			setHasSeenWelcome(true);
+		}
 	};
 
 	if (!appIsReady || !success || checkingWelcome) {
@@ -93,6 +101,22 @@ export default function RootLayout() {
 						options={{
 							title: 'Pixel Art Studio',
 							headerShown: false,
+						}}
+					/>
+					<Stack.Screen
+						name='auth'
+						options={{
+							headerShown: false,
+							title: 'Authentication',
+							presentation: 'modal',
+						}}
+					/>
+					<Stack.Screen
+						name='profile'
+						options={{
+							headerShown: false,
+							title: 'Profile',
+							presentation: 'modal',
 						}}
 					/>
 					<Stack.Screen
