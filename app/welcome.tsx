@@ -296,7 +296,7 @@ const AnimatedPixelArt: React.FC<PixelArtAnimationProps> = ({
 };
 
 interface WelcomeScreenProps {
-	onComplete: () => void;
+	onComplete?: () => void;
 }
 
 export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
@@ -366,10 +366,10 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 		try {
 			await AsyncStorage.setItem('hasSeenWelcome', 'true');
 			router.replace('/');
-			onComplete();
+			onComplete?.();
 		} catch (error) {
 			console.error('Error saving welcome state:', error);
-			onComplete(); // Continue anyway
+			onComplete?.(); // Continue anyway
 		}
 	};
 

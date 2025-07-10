@@ -13,12 +13,13 @@ import {
 	floodFill,
 	getDistanceBetweenPoints,
 } from '../utils/shapeUtils';
+import { SymmetryMode } from '../services/draw';
 
 interface PixelGridProps {
 	grid: string[][];
 	selectedColor: string;
 	scale: number;
-	symmetryMode: string;
+	symmetryMode: SymmetryMode;
 	selectedTool: string;
 	onPixelUpdate: (x: number, y: number, color: string) => void;
 	onShapeComplete: (points: Point[]) => void;

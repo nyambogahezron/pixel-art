@@ -9,7 +9,7 @@ import {
 	ScrollView,
 	Alert,
 } from 'react-native';
-import { DrawingService } from '../db/services';
+import { DrawingService } from '../services/database';
 import { Drawing } from '../db/schema';
 
 interface SaveLoadPanelProps {

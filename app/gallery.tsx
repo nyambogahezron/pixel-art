@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { DrawingService } from '../db/services';
+import { DrawingService } from '../services/database';
 import { Drawing } from '../db/schema';
 
 const { width: screenWidth } = Dimensions.get('window');

@@ -18,14 +18,15 @@ import ColorPalette from '../components/ColorPalette';
 import ToolsPanel from '../components/ToolsPanel';
 import AnimationFrames from '../components/AnimationFrames';
 import { Point } from '../utils/shapeUtils';
-import { DrawingService } from '../db/services';
+import { DrawingService } from '../services/database';
 import { Drawing } from '../db/schema';
+import { DrawService, SymmetryMode } from '../services/draw';
 
 export default function IndexScreen() {
 	const [selectedColor, setSelectedColor] = useState('#000000');
 	const [gridSize] = useState({ width: 16, height: 16 });
 	const [scale, setScale] = useState(1);
-	const [symmetryMode, setSymmetryMode] = useState('none'); // none, horizontal, vertical, both
+	const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>('none'); // none, horizontal, vertical, both
 	const [selectedTool, setSelectedTool] = useState('pencil'); // pencil, line, rectangle, circle, fill
 	const [currentFrame, setCurrentFrame] = useState(0);
 	const [frames, setFrames] = useState([
@@ -49,19 +50,13 @@ export default function IndexScreen() {
 	const handleLoadDrawing = (loadedFrames: string[][][]) => {
 		setFrames(loadedFrames);
 		setCurrentFrame(0);
-		setSavedFramesSnapshot(JSON.parse(JSON.stringify(loadedFrames)));
+		setSavedFramesSnapshot(DrawService.createFramesSnapshot(loadedFrames));
 		setHasUnsavedChanges(false);
 	};
 
 	// Check if current frames differ from saved snapshot
 	const checkForChanges = () => {
-		if (savedFramesSnapshot.length === 0) {
-			setHasUnsavedChanges(true);
-			return;
-		}
-
-		const hasChanges =
-			JSON.stringify(frames) !== JSON.stringify(savedFramesSnapshot);
+		const hasChanges = DrawService.hasChanges(frames, savedFramesSnapshot);
 		setHasUnsavedChanges(hasChanges);
 	};
 
@@ -103,7 +98,7 @@ export default function IndexScreen() {
 					},
 					frames
 				);
-				setSavedFramesSnapshot(JSON.parse(JSON.stringify(frames)));
+				setSavedFramesSnapshot(DrawService.createFramesSnapshot(frames));
 				setHasUnsavedChanges(false);
 				toast.success(`"${drawingName}" saved successfully!`);
 			} else {
@@ -115,7 +110,7 @@ export default function IndexScreen() {
 					frames
 				);
 				setCurrentDrawingId(newDrawing.id);
-				setSavedFramesSnapshot(JSON.parse(JSON.stringify(frames)));
+				setSavedFramesSnapshot(DrawService.createFramesSnapshot(frames));
 				setHasUnsavedChanges(false);
 				Alert.alert('Success', `"${drawingName}" saved successfully!`);
 			}
@@ -159,7 +154,7 @@ export default function IndexScreen() {
 				},
 				frames
 			);
-			setSavedFramesSnapshot(JSON.parse(JSON.stringify(frames)));
+			setSavedFramesSnapshot(DrawService.createFramesSnapshot(frames));
 			setHasUnsavedChanges(false);
 			toast.success('Saved!');
 			onComplete?.();
@@ -265,83 +260,34 @@ export default function IndexScreen() {
 	const createNewDrawing = () => {
 		setCurrentDrawingId(null);
 		setDrawingName('');
-		const newFrames = [
-			Array(gridSize.height)
-				.fill(null)
-				.map(() => Array(gridSize.width).fill('#FFFFFF')),
-		];
+		const newFrames = DrawService.createNewDrawing(gridSize);
 		handleLoadDrawing(newFrames);
 		Alert.alert('Success', 'New drawing created!');
 	};
 
 	const updatePixel = (x: number, y: number, color: string) => {
-		const newFrames = [...frames];
-		const newGrid = [...newFrames[currentFrame]];
-		newGrid[y] = [...newGrid[y]];
-		newGrid[y][x] = color;
-
-		// Apply symmetry
-		if (symmetryMode === 'horizontal' || symmetryMode === 'both') {
-			newGrid[y][gridSize.width - 1 - x] = color;
-		}
-		if (symmetryMode === 'vertical' || symmetryMode === 'both') {
-			newGrid[gridSize.height - 1 - y][x] = color;
-		}
-		if (symmetryMode === 'both') {
-			newGrid[gridSize.height - 1 - y][gridSize.width - 1 - x] = color;
-		}
-
-		newFrames[currentFrame] = newGrid;
+		const newFrames = DrawService.updatePixel(
+			frames,
+			currentFrame,
+			x,
+			y,
+			color,
+			gridSize,
+			symmetryMode
+		);
 		setFrames(newFrames);
 		setHasUnsavedChanges(true);
 	};
 
 	const handleShapeComplete = (points: Point[]) => {
-		const newFrames = [...frames];
-		const newGrid = [...newFrames[currentFrame]];
-
-		// Apply shape points
-		points.forEach((point) => {
-			if (
-				point.x >= 0 &&
-				point.x < gridSize.width &&
-				point.y >= 0 &&
-				point.y < gridSize.height
-			) {
-				newGrid[point.y] = [...newGrid[point.y]];
-				newGrid[point.y][point.x] = selectedColor;
-
-				// Apply symmetry
-				if (symmetryMode === 'horizontal' || symmetryMode === 'both') {
-					const symX = gridSize.width - 1 - point.x;
-					if (symX >= 0 && symX < gridSize.width) {
-						newGrid[point.y][symX] = selectedColor;
-					}
-				}
-				if (symmetryMode === 'vertical' || symmetryMode === 'both') {
-					const symY = gridSize.height - 1 - point.y;
-					if (symY >= 0 && symY < gridSize.height) {
-						newGrid[symY] = [...newGrid[symY]];
-						newGrid[symY][point.x] = selectedColor;
-					}
-				}
-				if (symmetryMode === 'both') {
-					const symX = gridSize.width - 1 - point.x;
-					const symY = gridSize.height - 1 - point.y;
-					if (
-						symX >= 0 &&
-						symX < gridSize.width &&
-						symY >= 0 &&
-						symY < gridSize.height
-					) {
-						newGrid[symY] = [...newGrid[symY]];
-						newGrid[symY][symX] = selectedColor;
-					}
-				}
-			}
-		});
-
-		newFrames[currentFrame] = newGrid;
+		const newFrames = DrawService.applyShapeToGrid(
+			frames,
+			currentFrame,
+			points,
+			selectedColor,
+			gridSize,
+			symmetryMode
+		);
 		setFrames(newFrames);
 		setHasUnsavedChanges(true);
 	};
@@ -437,12 +383,8 @@ export default function IndexScreen() {
 						currentFrame={currentFrame}
 						onFrameSelect={setCurrentFrame}
 						onAddFrame={() => {
-							setFrames([
-								...frames,
-								Array(gridSize.height)
-									.fill(null)
-									.map(() => Array(gridSize.width).fill('#FFFFFF')),
-							]);
+							const newFrames = DrawService.addNewFrame(frames, gridSize);
+							setFrames(newFrames);
 							setHasUnsavedChanges(true);
 						}}
 					/>

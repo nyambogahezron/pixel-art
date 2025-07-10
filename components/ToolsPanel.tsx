@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { SymmetryMode } from '../services/draw';
 
 interface ToolsPanelProps {
-	symmetryMode: string;
-	onSymmetryChange: (mode: string) => void;
+	symmetryMode: SymmetryMode;
+	onSymmetryChange: (mode: SymmetryMode) => void;
 	selectedTool: string;
 	onToolChange: (tool: string) => void;
 }

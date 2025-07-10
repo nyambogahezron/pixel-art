@@ -1,12 +1,11 @@
-import { db } from './index';
+import { db } from '../db/index';
 import {
 	drawings,
 	animationFrames,
 	type Drawing,
 	type NewDrawing,
 	type AnimationFrame,
-	type NewAnimationFrame,
-} from './schema';
+} from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 export class DrawingService {
