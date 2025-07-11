@@ -15,6 +15,13 @@
       "when": 1752170864222,
       "tag": "0001_bumpy_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1752183667418,
+      "tag": "0002_typical_marauders",
+      "breakpoints": true
     }
   ]
 }

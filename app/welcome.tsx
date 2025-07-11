@@ -362,15 +362,9 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 		}
 	};
 
-	const handleAgree = async () => {
-		try {
-			await DrawingService.markWelcomeSeen();
-			router.replace('/');
-			onComplete?.();
-		} catch (error) {
-			console.error('Error saving welcome state:', error);
-			onComplete?.(); // Continue anyway
-		}
+	const handleAgree = () => {
+		setShowAgreement(false);
+		onComplete?.();
 	};
 
 	const currentStepData = steps[currentStep];
@@ -381,11 +375,8 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 				<AnimatedPixelArt size={5} animationSpeed={500} />
 			</View>
 
-			{/* Overlay Content */}
 			<SafeAreaView style={styles.overlayContent}>
-				{/* Main Content Container */}
 				<View style={styles.mainContentContainer}>
-					{/* Step Content */}
 					<View style={styles.stepContainer}>
 						<Animated.View
 							style={[
@@ -497,11 +488,21 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 					</Animated.View>
 				</View>
 			</SafeAreaView>
-
 			{/* User Agreement Modal */}
 			<Modal visible={showAgreement} transparent animationType='fade'>
-				<View style={styles.modalOverlay}>
-					<View style={styles.modalContent}>
+				<Pressable
+					style={styles.modalOverlay}
+					onPress={() => {
+						// Don't close modal when pressing outside for terms agreement
+						console.log(
+							'Modal overlay pressed - not closing for terms agreement'
+						);
+					}}
+				>
+					<Pressable
+						style={styles.modalContent}
+						onPress={(e) => e.stopPropagation()}
+					>
 						<MaterialIcons name='gavel' size={48} color='#007AFF' />
 						<Text style={styles.modalTitle}>Terms of Use</Text>
 
@@ -532,19 +533,27 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 						<View style={styles.modalButtons}>
 							<Pressable
 								style={[styles.modalButton, styles.disagreeButton]}
-								onPress={() => setShowAgreement(false)}
+								onPress={() => {
+									console.log('Disagree pressed');
+									setShowAgreement(false);
+								}}
+								android_ripple={{ color: '#BDC3C7' }}
 							>
 								<Text style={styles.disagreeButtonText}>Disagree</Text>
 							</Pressable>
 							<Pressable
 								style={[styles.modalButton, styles.agreeButton]}
-								onPress={handleAgree}
+								onPress={() => {
+									console.log('Agree button pressed');
+									handleAgree();
+								}}
+								android_ripple={{ color: '#2ECC71' }}
 							>
 								<Text style={styles.agreeButtonText}>I Agree</Text>
 							</Pressable>
 						</View>
-					</View>
-				</View>
+					</Pressable>
+				</Pressable>
 			</Modal>
 		</View>
 	);

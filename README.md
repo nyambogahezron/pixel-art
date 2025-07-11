@@ -1,43 +1,59 @@
 # Pixel Art
 
+A comprehensive pixel art creation app with advanced security features, auto-save functionality, and intuitive drawing tools.
 
-# Auto-Save and App State Management
+## 🔐 Security Features
 
-## Overview
+### Biometric Authentication
+
+- **Forgot Password**: Reset your password using fingerprint or Face ID authentication
+- **Password Change**: Change your password with biometric verification for enhanced security
+- **Account Deletion**: Delete your account permanently with biometric confirmation
+- **Device-Level Security**: All biometric authentication is handled by your device's secure enclave
+
+### Account Management
+
+- **Secure Password Reset**: Two-step password reset process with email verification and biometric authentication
+- **Protected Settings**: Critical account changes require biometric verification
+- **Privacy Protection**: Biometric data never leaves your device
+
+## ✨ Auto-Save and App State Management
+
+### Overview
 
 The pixel art drawing app now includes comprehensive auto-save functionality and smart app state management that automatically saves your work and resumes where you left off. These features work seamlessly in the background without interrupting your creative flow.
 
-## Auto-Save Features
+### Auto-Save Features
 
-### Auto-Save Mechanism
+#### Auto-Save Mechanism
 
 - **Automatic Detection**: The app detects when you make changes to your drawing
 - **Smart Timing**: Auto-save triggers 5 seconds after you stop making changes
 - **Frequency Limit**: Auto-saves occur at most once every 30 seconds to avoid excessive database writes
 - **Background Operation**: Auto-save runs silently without disrupting your work
 
-### Auto-Save Naming
+#### Auto-Save Naming
 
 - New drawings are automatically saved with names like "Unsaved 1", "Unsaved 2", etc.
 - The app intelligently finds the next available number in the sequence
 - You can later give your drawing a proper name when you manually save it
 
-## App State Management
+### App State Management
 
-### Resume Last Drawing
+#### Resume Last Drawing
 
 - **Automatic Resume**: When you return to the app, it automatically loads the last drawing you were working on
 - **Cross-Session Persistence**: Your last working drawing is remembered even after closing the app completely
 - **Loading Indicator**: Shows a loading screen while retrieving your last drawing
 - **Fallback Handling**: If the last drawing can't be loaded, starts with a blank canvas
 
-### Welcome Screen Intelligence
+#### Welcome Screen Intelligence
 
 - **One-Time Welcome**: The welcome screen only appears the first time you use the app
 - **Terms Agreement Tracking**: Once you agree to terms, you won't see the welcome screen again
 - **Direct to Drawing**: Returning users go straight to the drawing interface
 
-### Visual Indicators
+#### Visual Indicators
 
 - **Title Bar**: Shows the current drawing name and auto-save status
 - **Auto-Save Label**: Displays "(Auto-saved)" next to auto-saved drawing names
@@ -45,9 +61,9 @@ The pixel art drawing app now includes comprehensive auto-save functionality and
 - **Load Modal**: Auto-saved drawings are clearly marked with an "Auto-saved" badge
 - **Resume Notification**: Shows a success toast when resuming a previous drawing
 
-## User Experience Flows
+### User Experience Flows
 
-### First-Time User
+#### First-Time User
 
 1. Sees welcome screen with app introduction and terms
 2. Agrees to terms and goes to drawing interface
@@ -55,42 +71,42 @@ The pixel art drawing app now includes comprehensive auto-save functionality and
 4. Work is auto-saved as "Unsaved 1" after 5 seconds
 5. Can continue working with auto-save protection
 
-### Returning User
+#### Returning User
 
 1. App automatically loads last drawing being worked on
 2. Shows loading screen briefly
 3. Displays toast notification about resumed drawing
 4. Can immediately continue where they left off
 
-### Creating New Drawings
+#### Creating New Drawings
 
 1. Tap "New" button
 2. If current drawing has unsaved changes, prompted to save first
 3. Last working drawing tracking is cleared for fresh start
 4. New drawing becomes the tracked working drawing
 
-### Loading Different Drawings
+#### Loading Different Drawings
 
 1. Open Load dialog
 2. Select any saved drawing
 3. That drawing becomes the new "last working drawing"
 4. Will resume to this drawing next time app opens
 
-## Technical Implementation
+### Technical Implementation
 
-### Storage Keys
+#### Storage Keys
 
 - `lastWorkingDrawingId`: Stores the ID of the last drawing being worked on
 - `hasSeenWelcome`: Tracks whether user has completed welcome flow
 
-### Components Modified
+#### Components Modified
 
 - `app/index.tsx`: Main drawing screen with auto-save and resume logic
 - `app/_layout.tsx`: Welcome screen management and app initialization
 - `app/welcome.tsx`: Updated to use centralized storage service
 - `services/database.ts`: Added state management utilities
 
-### Key Features
+#### Key Features
 
 - Debounced auto-save (5-second delay)
 - Intelligent naming system

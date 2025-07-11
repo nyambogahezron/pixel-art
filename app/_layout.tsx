@@ -11,6 +11,7 @@ import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import migrations from '../drizzle/migrations';
 import { db } from '../db';
 import { DrawingService } from '../services/database';
+import { ColorService } from '../services/colorService';
 import WelcomeScreen from './welcome';
 
 SplashScreen.preventAutoHideAsync();
@@ -34,11 +35,14 @@ export default function RootLayout() {
 
 		async function prepare() {
 			try {
+				// Initialize default colors after migration
+				await ColorService.initializeDefaultColors();
+
 				// Check if user has seen welcome screen
 				const welcomeSeen = await DrawingService.hasSeenWelcome();
 				setHasSeenWelcome(welcomeSeen);
 			} catch (e) {
-				console.warn(e);
+				console.warn('Error during app initialization:', e);
 			} finally {
 				setAppIsReady(true);
 				setCheckingWelcome(false);
@@ -61,13 +65,11 @@ export default function RootLayout() {
 	}, [appIsReady, checkingWelcome]);
 
 	const handleWelcomeComplete = async () => {
-		// Ensure the welcome seen flag is saved before updating state
 		try {
 			await DrawingService.markWelcomeSeen();
 			setHasSeenWelcome(true);
 		} catch (error) {
 			console.error('Error saving welcome state:', error);
-			// Still update state to prevent endless loop
 			setHasSeenWelcome(true);
 		}
 	};
@@ -89,13 +91,6 @@ export default function RootLayout() {
 			<GestureHandlerRootView style={{ flex: 1 }}>
 				<Toaster />
 				<Stack>
-					<Stack.Screen
-						name='welcome'
-						options={{
-							headerShown: false,
-							title: 'Welcome',
-						}}
-					/>
 					<Stack.Screen
 						name='index'
 						options={{
