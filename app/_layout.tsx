@@ -13,6 +13,7 @@ import { db } from '../db';
 import { DrawingService } from '../services/database';
 import { ColorService } from '../services/colorService';
 import WelcomeScreen from './welcome';
+import { StatusBar } from 'react-native';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,15 +31,12 @@ export default function RootLayout() {
 	const [checkingWelcome, setCheckingWelcome] = React.useState(true);
 
 	React.useEffect(() => {
-		// Set the system UI styles
 		SystemUI.setBackgroundColorAsync('#000000');
 
 		async function prepare() {
 			try {
-				// Initialize default colors after migration
 				await ColorService.initializeDefaultColors();
 
-				// Check if user has seen welcome screen
 				const welcomeSeen = await DrawingService.hasSeenWelcome();
 				setHasSeenWelcome(welcomeSeen);
 			} catch (e) {
@@ -88,9 +86,16 @@ export default function RootLayout() {
 
 	return (
 		<SafeAreaProvider onLayout={onLayoutRootView} style={{ flex: 1 }}>
+			<StatusBar barStyle={'dark-content'} backgroundColor={'#ffffff'} />
 			<GestureHandlerRootView style={{ flex: 1 }}>
 				<Toaster />
-				<Stack>
+				<Stack
+					screenOptions={{
+						statusBarBackgroundColor: '#ffffff',
+						statusBarStyle: 'dark',
+						headerStyle: { backgroundColor: '#ffffff' },
+					}}
+				>
 					<Stack.Screen
 						name='index'
 						options={{

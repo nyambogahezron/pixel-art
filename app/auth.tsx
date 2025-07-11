@@ -30,14 +30,12 @@ export default function AuthScreen() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-	// Animation values
 	const slideAnim = useRef(new Animated.Value(0)).current;
 	const fadeAnim = useRef(new Animated.Value(0)).current;
 	const scaleAnim = useRef(new Animated.Value(0.8)).current;
 	const logoRotateAnim = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
-		// Initial entrance animations
 		Animated.parallel([
 			Animated.timing(fadeAnim, {
 				toValue: 1,
@@ -52,7 +50,6 @@ export default function AuthScreen() {
 			}),
 		]).start();
 
-		// Continuous logo rotation
 		const rotateLoop = () => {
 			logoRotateAnim.setValue(0);
 			Animated.timing(logoRotateAnim, {
@@ -71,7 +68,6 @@ export default function AuthScreen() {
 			useNativeDriver: true,
 		}).start();
 		setIsLogin(!isLogin);
-		// Clear form when switching modes
 		setName('');
 		setEmail('');
 		setPassword('');
@@ -81,7 +77,6 @@ export default function AuthScreen() {
 	const handleSubmit = async () => {
 		if (isLoading) return;
 
-		// Basic validation
 		if (!email || !password) {
 			Alert.alert('Error', 'Please fill in all required fields');
 			return;
@@ -99,18 +94,14 @@ export default function AuthScreen() {
 
 		try {
 			if (isLogin) {
-				// Login logic
 				await UserService.login(email, password);
-				// Navigate directly without alert for smoother UX
 				router.replace('/');
 			} else {
-				// Sign up logic
 				await UserService.createAccount({
 					name,
 					email,
-					password, // In production, hash this password
+					password,
 				});
-				// Navigate directly without alert for smoother UX
 				router.replace('/');
 			}
 		} catch (error) {

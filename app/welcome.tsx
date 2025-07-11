@@ -21,7 +21,6 @@ interface PixelArtAnimationProps {
 	animationSpeed?: number;
 }
 
-// Animated Pixel Grid Component
 const AnimatedPixelArt: React.FC<PixelArtAnimationProps> = ({
 	size = 12,
 	animationSpeed = 200,
@@ -153,16 +152,15 @@ const AnimatedPixelArt: React.FC<PixelArtAnimationProps> = ({
 		const text1 = 'WELCOME TO';
 		const text2 = 'PIXEL ART';
 
-		// Calculate exact width needed for each line
 		const calculateTextWidth = (text: string) => {
 			let width = 0;
 			for (const char of text) {
 				const letterData = letters[char as keyof typeof letters];
 				if (letterData) {
-					width += letterData[0].length + 1; // letter width + spacing
+					width += letterData[0].length + 1;
 				}
 			}
-			return width - 1; // remove last spacing
+			return width - 1;
 		};
 
 		const text1Width = calculateTextWidth(text1);
@@ -247,7 +245,6 @@ const AnimatedPixelArt: React.FC<PixelArtAnimationProps> = ({
 			setCurrentFrame((prev) => (prev + 1) % textFrames.length);
 		}, animationSpeed);
 
-		// Fade in animation
 		Animated.timing(fadeAnim, {
 			toValue: 1,
 			duration: 800,

@@ -39,6 +39,10 @@ export default function PixelGrid({
 	const [previewPoints, setPreviewPoints] = React.useState<Point[]>([]);
 
 	const handlePixelPress = (x: number, y: number) => {
+		console.log('handlePixelPress called with:', { x, y, selectedTool });
+		// Disable interaction in view-only mode
+		if (selectedTool === 'none') return;
+
 		if (selectedTool === 'pencil') {
 			onPixelUpdate(x, y, selectedColor);
 		} else if (selectedTool === 'fill') {
@@ -48,8 +52,37 @@ export default function PixelGrid({
 				onShapeComplete(fillPoints);
 			}
 		} else if (['line', 'rectangle', 'circle'].includes(selectedTool)) {
-			setStartPoint({ x, y });
-			setIsDrawing(true);
+			if (!startPoint) {
+				setStartPoint({ x, y });
+				setIsDrawing(true);
+			} else {
+				const endPoint = { x, y };
+				let points: Point[] = [];
+
+				if (selectedTool === 'line') {
+					points = getLinePoints(startPoint, endPoint);
+				} else if (selectedTool === 'rectangle') {
+					points = getRectanglePoints(startPoint, endPoint);
+				} else if (selectedTool === 'circle') {
+					const radius = Math.round(
+						getDistanceBetweenPoints(startPoint, endPoint)
+					);
+					points = getCirclePoints(startPoint, radius);
+				}
+
+				points = points.filter(
+					(p) =>
+						p.x >= 0 && p.x < grid[0].length && p.y >= 0 && p.y < grid.length
+				);
+
+				console.log('Generated points:', points);
+				onShapeComplete(points);
+
+				// Reset state
+				setIsDrawing(false);
+				setStartPoint(null);
+				setPreviewPoints([]);
+			}
 		}
 	};
 
@@ -58,6 +91,9 @@ export default function PixelGrid({
 		x: number,
 		y: number
 	) => {
+		// Disable interaction in view-only mode
+		if (selectedTool === 'none') return;
+
 		if (selectedTool === 'pencil' && isDrawing) {
 			const { locationX, locationY } = event.nativeEvent;
 			const pixelSize = 8 * scale;
@@ -101,15 +137,26 @@ export default function PixelGrid({
 	};
 
 	const handlePixelRelease = () => {
+		// Disable interaction in view-only mode
+		if (selectedTool === 'none') return;
+
+		// Only handle release for drag-to-draw mode with preview points
 		if (isDrawing && startPoint && previewPoints.length > 0) {
+			console.log('Completing shape via drag with points:', previewPoints);
 			onShapeComplete(previewPoints);
+			setIsDrawing(false);
+			setStartPoint(null);
+			setPreviewPoints([]);
 		}
-		setIsDrawing(false);
-		setStartPoint(null);
-		setPreviewPoints([]);
+		// For click-to-click mode, we don't reset here
 	};
 
 	const getPixelColor = (x: number, y: number) => {
+		// Show start point indicator
+		if (startPoint && startPoint.x === x && startPoint.y === y && isDrawing) {
+			return '#FF0000'; // Red indicator for start point
+		}
+
 		const isPreviewPixel = previewPoints.some((p) => p.x === x && p.y === y);
 		if (isPreviewPixel) {
 			return selectedColor;
@@ -124,6 +171,7 @@ export default function PixelGrid({
 					{row.map((color, x) => (
 						<Pressable
 							key={`${x}-${y}`}
+							disabled={selectedTool === 'none'}
 							onPressIn={() => {
 								handlePixelPress(x, y);
 							}}

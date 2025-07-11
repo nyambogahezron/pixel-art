@@ -8,20 +8,13 @@ export interface GridSize {
 export type SymmetryMode = 'none' | 'horizontal' | 'vertical' | 'both';
 
 export class DrawService {
-	// Auto-save constants
-	static readonly AUTO_SAVE_DELAY = 5000; // 5 seconds after last change
-	static readonly AUTO_SAVE_INTERVAL = 30000; // 30 seconds minimum between auto-saves
+	static readonly AUTO_SAVE_DELAY = 5000;
+	static readonly AUTO_SAVE_INTERVAL = 30000;
 
-	/**
-	 * Checks if enough time has passed since last auto-save for a new auto-save
-	 */
 	static shouldAutoSave(lastAutoSaveTime: number): boolean {
 		return Date.now() - lastAutoSaveTime >= this.AUTO_SAVE_INTERVAL;
 	}
 
-	/**
-	 * Updates a pixel in the grid with symmetry support
-	 */
 	static updatePixel(
 		frames: string[][][],
 		currentFrame: number,
@@ -36,7 +29,6 @@ export class DrawService {
 		newGrid[y] = [...newGrid[y]];
 		newGrid[y][x] = color;
 
-		// Apply symmetry
 		if (symmetryMode === 'horizontal' || symmetryMode === 'both') {
 			newGrid[y][gridSize.width - 1 - x] = color;
 		}
@@ -51,9 +43,6 @@ export class DrawService {
 		return newFrames;
 	}
 
-	/**
-	 * Applies shape points to the grid with symmetry support
-	 */
 	static applyShapeToGrid(
 		frames: string[][][],
 		currentFrame: number,
@@ -65,7 +54,6 @@ export class DrawService {
 		const newFrames = [...frames];
 		const newGrid = [...newFrames[currentFrame]];
 
-		// Apply shape points
 		points.forEach((point) => {
 			if (
 				point.x >= 0 &&
@@ -76,7 +64,6 @@ export class DrawService {
 				newGrid[point.y] = [...newGrid[point.y]];
 				newGrid[point.y][point.x] = selectedColor;
 
-				// Apply symmetry
 				if (symmetryMode === 'horizontal' || symmetryMode === 'both') {
 					const symX = gridSize.width - 1 - point.x;
 					if (symX >= 0 && symX < gridSize.width) {
@@ -110,9 +97,6 @@ export class DrawService {
 		return newFrames;
 	}
 
-	/**
-	 * Creates a new blank drawing with the specified grid size
-	 */
 	static createNewDrawing(gridSize: GridSize): string[][][] {
 		return [
 			Array(gridSize.height)
@@ -121,9 +105,6 @@ export class DrawService {
 		];
 	}
 
-	/**
-	 * Checks if the current frames differ from the saved snapshot
-	 */
 	static hasChanges(
 		currentFrames: string[][][],
 		savedFramesSnapshot: string[][][]
@@ -136,16 +117,10 @@ export class DrawService {
 		);
 	}
 
-	/**
-	 * Creates a deep copy of frames for snapshot purposes
-	 */
 	static createFramesSnapshot(frames: string[][][]): string[][][] {
 		return JSON.parse(JSON.stringify(frames));
 	}
 
-	/**
-	 * Adds a new frame to the frames array
-	 */
 	static addNewFrame(frames: string[][][], gridSize: GridSize): string[][][] {
 		return [
 			...frames,
@@ -153,5 +128,35 @@ export class DrawService {
 				.fill(null)
 				.map(() => Array(gridSize.width).fill('#FFFFFF')),
 		];
+	}
+
+	static deleteFrame(frames: string[][][], frameIndex: number): string[][][] {
+		if (frames.length <= 1) {
+			throw new Error('Cannot delete the last frame');
+		}
+
+		return frames.filter((_, index) => index !== frameIndex);
+	}
+
+	static reorderFrames(
+		frames: string[][][],
+		fromIndex: number,
+		toIndex: number
+	): string[][][] {
+		if (
+			fromIndex === toIndex ||
+			fromIndex < 0 ||
+			toIndex < 0 ||
+			fromIndex >= frames.length ||
+			toIndex >= frames.length
+		) {
+			return frames;
+		}
+
+		const newFrames = [...frames];
+		const [movedFrame] = newFrames.splice(fromIndex, 1);
+		newFrames.splice(toIndex, 0, movedFrame);
+
+		return newFrames;
 	}
 }

@@ -1,6 +1,3 @@
-// Tests for app state management functionality
-// This would be run in a test environment
-
 import { DrawingService } from '../services/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

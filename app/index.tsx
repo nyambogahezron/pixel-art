@@ -9,6 +9,7 @@ import {
 	Text,
 	Alert,
 	ActivityIndicator,
+	Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
@@ -27,8 +28,8 @@ export default function IndexScreen() {
 	const [selectedColor, setSelectedColor] = useState('#000000');
 	const [gridSize] = useState({ width: 16, height: 16 });
 	const [scale, setScale] = useState(1);
-	const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>('none'); // none, horizontal, vertical, both
-	const [selectedTool, setSelectedTool] = useState('pencil'); // pencil, line, rectangle, circle, fill
+	const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>('none');
+	const [selectedTool, setSelectedTool] = useState('pencil');
 	const [currentFrame, setCurrentFrame] = useState(0);
 	const [frames, setFrames] = useState([
 		Array(gridSize.height)
@@ -36,7 +37,6 @@ export default function IndexScreen() {
 			.map(() => Array(gridSize.width).fill('#FFFFFF')),
 	]);
 
-	// Save/Load state
 	const [saveModalVisible, setSaveModalVisible] = useState(false);
 	const [loadModalVisible, setLoadModalVisible] = useState(false);
 	const [drawingName, setDrawingName] = useState('');
@@ -48,7 +48,18 @@ export default function IndexScreen() {
 	);
 	const [pendingNewDrawing, setPendingNewDrawing] = useState(false);
 
-	// Auto-save state
+	const [fullScreenPlayVisible, setFullScreenPlayVisible] = useState(false);
+	const [isPlayingFullScreen, setIsPlayingFullScreen] = useState(false);
+	const [playCurrentFrame, setPlayCurrentFrame] = useState(0);
+	const [playInterval, setPlayInterval] = useState<number | null>(null);
+	const [playSpeed, setPlaySpeed] = useState(200);
+
+	const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+	const [animationDelay, setAnimationDelay] = useState(200);
+	const [enableMusic, setEnableMusic] = useState(false);
+	const [musicUrl, setMusicUrl] = useState('');
+	const [shareDrawing, setShareDrawing] = useState(false);
+
 	const [autoSaveTimeoutId, setAutoSaveTimeoutId] = useState<number | null>(
 		null
 	);
@@ -56,10 +67,8 @@ export default function IndexScreen() {
 	const [isAutoSaving, setIsAutoSaving] = useState(false);
 	const [originalAutoSaveName, setOriginalAutoSaveName] = useState<string>('');
 
-	// App initialization state
 	const [isLoadingLastDrawing, setIsLoadingLastDrawing] = useState(true);
 
-	// Load last working drawing on app start
 	useEffect(() => {
 		const loadLastDrawing = async () => {
 			try {
@@ -94,21 +103,17 @@ export default function IndexScreen() {
 		loadLastDrawing();
 	}, []);
 
-	// Track current drawing as last working drawing
 	useEffect(() => {
 		if (currentDrawingId && !isLoadingLastDrawing) {
 			DrawingService.setLastWorkingDrawing(currentDrawingId);
 		}
 	}, [currentDrawingId, isLoadingLastDrawing]);
 
-	// Auto-save functionality
 	const performAutoSave = async () => {
 		if (isAutoSaving || !hasUnsavedChanges) return;
 
-		// Don't auto-save if user is currently saving manually
 		if (saveModalVisible) return;
 
-		// Check if enough time has passed since last auto-save
 		if (!DrawService.shouldAutoSave(lastAutoSaveTime)) return;
 
 		setIsAutoSaving(true);
@@ -125,7 +130,6 @@ export default function IndexScreen() {
 					frames
 				);
 
-				// Update drawing name if it was empty (shouldn't happen but just in case)
 				if (!drawingName) {
 					const updatedDrawing = await DrawingService.getDrawing(
 						currentDrawingId
@@ -135,7 +139,6 @@ export default function IndexScreen() {
 					}
 				}
 			} else {
-				// Create new auto-save
 				const autoSavedDrawing = await DrawingService.autoSave(
 					frames[currentFrame],
 					gridSize.width,
@@ -150,23 +153,19 @@ export default function IndexScreen() {
 			setHasUnsavedChanges(false);
 			setLastAutoSaveTime(Date.now());
 
-			// Show subtle notification for auto-save
 			toast.success('Auto-saved', { duration: 1000 });
 		} catch (error) {
 			console.error('Auto-save failed:', error);
-			// Don't show error toast for auto-save failures to avoid disrupting user
 		} finally {
 			setIsAutoSaving(false);
 		}
 	};
 
 	const scheduleAutoSave = () => {
-		// Clear existing timeout
 		if (autoSaveTimeoutId) {
 			clearTimeout(autoSaveTimeoutId);
 		}
 
-		// Schedule new auto-save
 		const timeoutId = setTimeout(() => {
 			performAutoSave();
 		}, DrawService.AUTO_SAVE_DELAY);
@@ -190,18 +189,15 @@ export default function IndexScreen() {
 		setHasUnsavedChanges(false);
 	};
 
-	// Check if current frames differ from saved snapshot
 	const checkForChanges = () => {
 		const hasChanges = DrawService.hasChanges(frames, savedFramesSnapshot);
 		setHasUnsavedChanges(hasChanges);
 
-		// Schedule auto-save if there are changes
 		if (hasChanges) {
 			scheduleAutoSave();
 		}
 	};
 
-	// Check for changes whenever frames change
 	useEffect(() => {
 		checkForChanges();
 	}, [frames, savedFramesSnapshot]);
@@ -268,10 +264,8 @@ export default function IndexScreen() {
 	};
 
 	const handleSaveModalOpen = () => {
-		// Store the original name for the hint message
 		setOriginalAutoSaveName(drawingName);
 
-		// If this is an auto-saved drawing, clear the name so user can enter a proper name
 		if (drawingName && DrawingService.isAutoSaveName(drawingName)) {
 			setDrawingName('');
 		}
@@ -290,10 +284,8 @@ export default function IndexScreen() {
 			drawingName &&
 			!DrawingService.isAutoSaveName(drawingName)
 		) {
-			// Existing drawing with proper name - save directly without modal
 			handleQuickSave();
 		} else {
-			// New drawing or auto-saved drawing - show modal for name input
 			handleSaveModalOpen();
 		}
 	};
@@ -331,12 +323,10 @@ export default function IndexScreen() {
 				let loadedFrames: string[][][] = [];
 
 				if (drawingWithFrames.frames && drawingWithFrames.frames.length > 0) {
-					// Load animation frames
 					loadedFrames = drawingWithFrames.frames.map(
 						(frame: any) => frame.gridData
 					);
 				} else {
-					// Load single frame
 					loadedFrames = [drawingWithFrames.gridData];
 				}
 
@@ -344,7 +334,6 @@ export default function IndexScreen() {
 				setCurrentDrawingId(drawing.id);
 				setDrawingName(drawing.name);
 
-				// Set this as the last working drawing
 				await DrawingService.setLastWorkingDrawing(drawing.id);
 
 				Alert.alert('Success', `Loaded "${drawing.name}" successfully!`);
@@ -405,7 +394,6 @@ export default function IndexScreen() {
 							if (currentDrawingId && drawingName) {
 								handleQuickSave(() => createNewDrawing());
 							} else {
-								// For new drawings, we need to show the save modal first
 								setPendingNewDrawing(true);
 								setSaveModalVisible(true);
 							}
@@ -424,7 +412,6 @@ export default function IndexScreen() {
 		const newFrames = DrawService.createNewDrawing(gridSize);
 		handleLoadDrawing(newFrames);
 
-		// Clear last working drawing since we're starting fresh
 		DrawingService.clearLastWorkingDrawing();
 
 		Alert.alert('Success', 'New drawing created!');
@@ -445,6 +432,7 @@ export default function IndexScreen() {
 	};
 
 	const handleShapeComplete = (points: Point[]) => {
+		console.log('handleShapeComplete called with points:', points);
 		const newFrames = DrawService.applyShapeToGrid(
 			frames,
 			currentFrame,
@@ -453,9 +441,95 @@ export default function IndexScreen() {
 			gridSize,
 			symmetryMode
 		);
+		console.log('New frames after shape applied:', newFrames[currentFrame]);
 		setFrames(newFrames);
 		setHasUnsavedChanges(true);
 	};
+
+	const startFullScreenPlay = () => {
+		if (frames.length > 1) {
+			setPlayCurrentFrame(0);
+			setFullScreenPlayVisible(true);
+			setIsPlayingFullScreen(true);
+		} else {
+			Alert.alert(
+				'No Animation',
+				'You need at least 2 frames to play an animation.'
+			);
+		}
+	};
+
+	const toggleFullScreenPlay = () => {
+		setIsPlayingFullScreen(!isPlayingFullScreen);
+	};
+
+	const exitFullScreenPlay = () => {
+		setFullScreenPlayVisible(false);
+		setIsPlayingFullScreen(false);
+		if (playInterval) {
+			clearInterval(playInterval);
+			setPlayInterval(null);
+		}
+	};
+
+	useEffect(() => {
+		if (isPlayingFullScreen && fullScreenPlayVisible && frames.length > 1) {
+			const interval = setInterval(() => {
+				setPlayCurrentFrame((prev) => (prev + 1) % frames.length);
+			}, playSpeed);
+			setPlayInterval(interval);
+		} else if (playInterval) {
+			clearInterval(playInterval);
+			setPlayInterval(null);
+		}
+
+		return () => {
+			if (playInterval) {
+				clearInterval(playInterval);
+			}
+		};
+	}, [isPlayingFullScreen, fullScreenPlayVisible, frames.length, playSpeed]);
+
+	const handleAnimationDelayChange = (newDelay: number) => {
+		setAnimationDelay(newDelay);
+		setPlaySpeed(newDelay);
+	};
+
+	const handleShareDrawing = async () => {
+		if (!currentDrawingId || !drawingName) {
+			Alert.alert('Error', 'Please save your drawing first before sharing');
+			return;
+		}
+
+		try {
+			Alert.alert(
+				'Share Drawing',
+				`"${drawingName}" is ready to share!\n\nAnimation Delay: ${animationDelay}ms\nMusic: ${
+					enableMusic ? 'Enabled' : 'Disabled'
+				}`,
+				[{ text: 'OK' }]
+			);
+		} catch (error) {
+			console.error('Error sharing drawing:', error);
+			Alert.alert('Error', 'Failed to share drawing');
+		}
+	};
+
+	useEffect(() => {
+		return () => {
+			if (playInterval) {
+				clearInterval(playInterval);
+			}
+		};
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			if (playInterval) {
+				clearInterval(playInterval);
+			}
+		};
+	}, []);
 
 	return (
 		<SafeAreaView style={styles.container}>
@@ -516,6 +590,12 @@ export default function IndexScreen() {
 								<MaterialIcons name='photo-library' size={20} color='#007AFF' />
 							</Pressable>
 						</Link>
+						<Pressable
+							style={styles.headerButton}
+							onPress={() => setSettingsModalVisible(true)}
+						>
+							<MaterialIcons name='settings' size={20} color='#007AFF' />
+						</Pressable>
 					</View>
 
 					{/* Drawing title bar */}
@@ -569,10 +649,54 @@ export default function IndexScreen() {
 								frames={frames}
 								currentFrame={currentFrame}
 								onFrameSelect={setCurrentFrame}
+								onFullScreenPlay={startFullScreenPlay}
 								onAddFrame={(newFrameIndex) => {
 									const newFrames = DrawService.addNewFrame(frames, gridSize);
 									setFrames(newFrames);
 									setCurrentFrame(newFrameIndex);
+									setHasUnsavedChanges(true);
+								}}
+								onDeleteFrame={(frameIndex) => {
+									try {
+										const newFrames = DrawService.deleteFrame(
+											frames,
+											frameIndex
+										);
+										setFrames(newFrames);
+										// Adjust current frame if necessary
+										if (currentFrame >= frameIndex && currentFrame > 0) {
+											setCurrentFrame(currentFrame - 1);
+										} else if (currentFrame >= newFrames.length) {
+											setCurrentFrame(newFrames.length - 1);
+										}
+										setHasUnsavedChanges(true);
+									} catch (error) {
+										Alert.alert('Error', 'Cannot delete the last frame');
+									}
+								}}
+								onReorderFrames={(fromIndex, toIndex) => {
+									const newFrames = DrawService.reorderFrames(
+										frames,
+										fromIndex,
+										toIndex
+									);
+									setFrames(newFrames);
+
+									let newCurrentFrame = currentFrame;
+									if (currentFrame === fromIndex) {
+										newCurrentFrame = toIndex;
+									} else if (
+										fromIndex < currentFrame &&
+										toIndex >= currentFrame
+									) {
+										newCurrentFrame = currentFrame - 1;
+									} else if (
+										fromIndex > currentFrame &&
+										toIndex <= currentFrame
+									) {
+										newCurrentFrame = currentFrame + 1;
+									}
+									setCurrentFrame(newCurrentFrame);
 									setHasUnsavedChanges(true);
 								}}
 							/>
@@ -678,6 +802,212 @@ export default function IndexScreen() {
 									onPress={() => setLoadModalVisible(false)}
 								>
 									<Text style={styles.cancelButtonText}>Close</Text>
+								</Pressable>
+							</View>
+						</View>
+					</Modal>
+
+					{/* Drawing Settings Modal */}
+					<Modal
+						visible={settingsModalVisible}
+						transparent
+						animationType='slide'
+						onRequestClose={() => setSettingsModalVisible(false)}
+					>
+						<View style={styles.modalOverlay}>
+							<View style={styles.modalContent}>
+								<Text style={styles.modalTitle}>Drawing Settings</Text>
+
+								{/* Animation Delay Setting */}
+								<View style={styles.settingSection}>
+									<Text style={styles.settingLabel}>Animation Delay</Text>
+									<Text style={styles.settingDescription}>
+										Time between frames (milliseconds)
+									</Text>
+									<View style={styles.sliderContainer}>
+										<Text style={styles.sliderValue}>50ms</Text>
+										<View style={styles.slider}>
+											<Pressable
+												style={[
+													styles.sliderButton,
+													animationDelay <= 50 && styles.sliderButtonDisabled,
+												]}
+												onPress={() =>
+													handleAnimationDelayChange(
+														Math.max(50, animationDelay - 50)
+													)
+												}
+												disabled={animationDelay <= 50}
+											>
+												<Text style={styles.sliderButtonText}>-</Text>
+											</Pressable>
+											<Text style={styles.currentDelayText}>
+												{animationDelay}ms
+											</Text>
+											<Pressable
+												style={[
+													styles.sliderButton,
+													animationDelay >= 1000 && styles.sliderButtonDisabled,
+												]}
+												onPress={() =>
+													handleAnimationDelayChange(
+														Math.min(1000, animationDelay + 50)
+													)
+												}
+												disabled={animationDelay >= 1000}
+											>
+												<Text style={styles.sliderButtonText}>+</Text>
+											</Pressable>
+										</View>
+										<Text style={styles.sliderValue}>1000ms</Text>
+									</View>
+								</View>
+
+								{/* Music Setting */}
+								<View style={styles.settingSection}>
+									<View style={styles.settingRow}>
+										<View style={styles.settingLabelContainer}>
+											<Text style={styles.settingLabel}>Enable Music</Text>
+											<Text style={styles.settingDescription}>
+												Add background music to your animation
+											</Text>
+										</View>
+										<Pressable
+											style={[
+												styles.toggle,
+												enableMusic && styles.toggleActive,
+											]}
+											onPress={() => setEnableMusic(!enableMusic)}
+										>
+											<View
+												style={[
+													styles.toggleKnob,
+													enableMusic && styles.toggleKnobActive,
+												]}
+											/>
+										</Pressable>
+									</View>
+									{enableMusic && (
+										<TextInput
+											style={styles.input}
+											placeholder='Music URL (optional)'
+											value={musicUrl}
+											onChangeText={setMusicUrl}
+										/>
+									)}
+								</View>
+
+								{/* Share Settings */}
+								<View style={styles.settingSection}>
+									<Text style={styles.settingLabel}>Sharing Options</Text>
+									<Text style={styles.settingDescription}>
+										Configure how your drawing will be shared
+									</Text>
+									<View style={styles.shareOptions}>
+										<Pressable
+											style={styles.shareButton}
+											onPress={handleShareDrawing}
+										>
+											<MaterialIcons name='share' size={20} color='white' />
+											<Text style={styles.shareButtonText}>Share Drawing</Text>
+										</Pressable>
+										<Pressable
+											style={[styles.shareButton, styles.exportButton]}
+											onPress={() => {
+												Alert.alert('Export', 'Export feature coming soon!');
+											}}
+										>
+											<MaterialIcons
+												name='download'
+												size={20}
+												color='#007AFF'
+											/>
+											<Text style={styles.exportButtonText}>Export as GIF</Text>
+										</Pressable>
+									</View>
+								</View>
+
+								{/* Modal Buttons */}
+								<View style={styles.modalButtons}>
+									<Pressable
+										style={[styles.modalButton, styles.cancelButton]}
+										onPress={() => setSettingsModalVisible(false)}
+									>
+										<Text style={styles.cancelButtonText}>Close</Text>
+									</Pressable>
+									<Pressable
+										style={[styles.modalButton, styles.saveButton]}
+										onPress={() => {
+											setSettingsModalVisible(false);
+											toast.success('Settings saved!');
+										}}
+									>
+										<Text style={styles.saveButtonText}>Save Settings</Text>
+									</Pressable>
+								</View>
+							</View>
+						</View>
+					</Modal>
+
+					{/* Full-Screen Play Modal */}
+					<Modal
+						visible={fullScreenPlayVisible}
+						transparent
+						animationType='fade'
+						onRequestClose={exitFullScreenPlay}
+					>
+						<View style={styles.fullScreenOverlay}>
+							<Pressable
+								style={styles.fullScreenClose}
+								onPress={exitFullScreenPlay}
+							>
+								<MaterialIcons name='close' size={32} color='white' />
+							</Pressable>
+							<View style={styles.fullScreenContent}>
+								<View style={styles.fullScreenPixelContainer}>
+									<PixelGrid
+										grid={frames[playCurrentFrame]}
+										selectedColor={selectedColor}
+										scale={Math.min(
+											(Dimensions.get('window').width - 40) /
+												(gridSize.width * 8),
+											(Dimensions.get('window').height - 200) /
+												(gridSize.height * 8)
+										)}
+										symmetryMode={symmetryMode}
+										selectedTool='none'
+										onPixelUpdate={() => {}}
+										onShapeComplete={() => {}}
+									/>
+								</View>
+							</View>
+							<View style={styles.fullScreenControls}>
+								<Pressable
+									style={styles.fullScreenPlayPause}
+									onPress={toggleFullScreenPlay}
+								>
+									<MaterialIcons
+										name={isPlayingFullScreen ? 'pause' : 'play-arrow'}
+										size={28}
+										color='white'
+									/>
+								</Pressable>
+								<Pressable
+									style={styles.fullScreenSpeed}
+									onPress={() =>
+										setPlaySpeed((prev) => Math.max(100, prev - 100))
+									}
+								>
+									<Text style={styles.fullScreenSpeedText}>-</Text>
+								</Pressable>
+								<Text style={styles.fullScreenFrameInfo}>
+									{playCurrentFrame + 1} / {frames.length}
+								</Text>
+								<Pressable
+									style={styles.fullScreenSpeed}
+									onPress={() => setPlaySpeed((prev) => prev + 100)}
+								>
+									<Text style={styles.fullScreenSpeedText}>+</Text>
 								</Pressable>
 							</View>
 						</View>
@@ -936,5 +1266,200 @@ const styles = StyleSheet.create({
 		color: '#666',
 		fontStyle: 'italic',
 		padding: 20,
+	},
+	// Full-screen play styles
+	fullScreenOverlay: {
+		flex: 1,
+		backgroundColor: 'rgba(0, 0, 0, 0.9)',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	fullScreenClose: {
+		position: 'absolute',
+		top: 50,
+		right: 20,
+		zIndex: 1000,
+		width: 48,
+		height: 48,
+		borderRadius: 24,
+		backgroundColor: 'rgba(0, 0, 0, 0.5)',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	fullScreenContent: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+		paddingHorizontal: 20,
+		paddingBottom: 120,
+	},
+	fullScreenPixelContainer: {
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	fullScreenControls: {
+		position: 'absolute',
+		bottom: 50,
+		left: 0,
+		right: 0,
+		flexDirection: 'row',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	fullScreenPlayPause: {
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: 'rgba(255, 255, 255, 0.8)',
+		marginHorizontal: 16,
+	},
+	fullScreenSpeed: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: 'rgba(255, 255, 255, 0.8)',
+		marginHorizontal: 8,
+	},
+	fullScreenSpeedText: {
+		fontSize: 18,
+		fontWeight: 'bold',
+		color: '#007AFF',
+	},
+	fullScreenFrameInfo: {
+		fontSize: 16,
+		color: 'white',
+		marginHorizontal: 8,
+	},
+	// Settings Modal styles
+	settingSection: {
+		marginBottom: 24,
+		paddingBottom: 16,
+		borderBottomWidth: 1,
+		borderBottomColor: '#f0f0f0',
+	},
+	settingLabel: {
+		fontSize: 16,
+		fontWeight: '600',
+		color: '#333',
+		marginBottom: 4,
+	},
+	settingDescription: {
+		fontSize: 14,
+		color: '#666',
+		marginBottom: 12,
+	},
+	settingRow: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	settingLabelContainer: {
+		flex: 1,
+		marginRight: 16,
+	},
+	sliderContainer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		marginTop: 8,
+	},
+	slider: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		backgroundColor: '#f8f9fa',
+		borderRadius: 20,
+		padding: 4,
+		flex: 1,
+		marginHorizontal: 12,
+		justifyContent: 'space-between',
+	},
+	sliderButton: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		backgroundColor: '#007AFF',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	sliderButtonDisabled: {
+		backgroundColor: '#ccc',
+	},
+	sliderButtonText: {
+		color: 'white',
+		fontSize: 16,
+		fontWeight: 'bold',
+	},
+	currentDelayText: {
+		fontSize: 14,
+		fontWeight: '600',
+		color: '#333',
+		minWidth: 60,
+		textAlign: 'center',
+	},
+	sliderValue: {
+		fontSize: 12,
+		color: '#666',
+		minWidth: 40,
+		textAlign: 'center',
+	},
+	toggle: {
+		width: 50,
+		height: 28,
+		borderRadius: 14,
+		backgroundColor: '#e0e0e0',
+		padding: 2,
+		justifyContent: 'center',
+	},
+	toggleActive: {
+		backgroundColor: '#007AFF',
+	},
+	toggleKnob: {
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		backgroundColor: 'white',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.2,
+		shadowRadius: 2,
+		elevation: 2,
+	},
+	toggleKnobActive: {
+		alignSelf: 'flex-end',
+	},
+	shareOptions: {
+		flexDirection: 'row',
+		gap: 12,
+		marginTop: 12,
+	},
+	shareButton: {
+		flex: 1,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: '#007AFF',
+		paddingVertical: 12,
+		paddingHorizontal: 16,
+		borderRadius: 8,
+		gap: 8,
+	},
+	shareButtonText: {
+		color: 'white',
+		fontWeight: '600',
+		fontSize: 14,
+	},
+	exportButton: {
+		backgroundColor: 'white',
+		borderWidth: 1,
+		borderColor: '#007AFF',
+	},
+	exportButtonText: {
+		color: '#007AFF',
+		fontWeight: '600',
+		fontSize: 14,
 	},
 });

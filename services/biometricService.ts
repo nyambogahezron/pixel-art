@@ -58,7 +58,6 @@ export class BiometricService {
 				return true;
 			} else {
 				if (result.error === 'user_cancel') {
-					// User cancelled, don't show error
 					return false;
 				} else {
 					Alert.alert(

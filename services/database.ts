@@ -11,7 +11,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserService } from './userService';
 
 export class DrawingService {
-	// Storage keys for user preferences
 	static readonly LAST_DRAWING_KEY = 'lastWorkingDrawingId';
 	static readonly HAS_SEEN_WELCOME_KEY = 'hasSeenWelcome';
 
@@ -44,7 +43,7 @@ export class DrawingService {
 	static async hasSeenWelcome(): Promise<boolean> {
 		try {
 			const seen = await AsyncStorage.getItem(this.HAS_SEEN_WELCOME_KEY);
-			console.log('Checking welcome status:', seen); // Debug log
+			console.log('Checking welcome status:', seen);
 			return seen === 'true';
 		} catch (error) {
 			console.error('Error checking welcome status:', error);
@@ -55,10 +54,10 @@ export class DrawingService {
 	static async markWelcomeSeen(): Promise<void> {
 		try {
 			await AsyncStorage.setItem(this.HAS_SEEN_WELCOME_KEY, 'true');
-			console.log('Welcome marked as seen'); // Debug log
+			console.log('Welcome marked as seen');
 		} catch (error) {
 			console.error('Error marking welcome seen:', error);
-			throw error; // Re-throw to handle in calling code
+			throw error;
 		}
 	}
 
@@ -74,7 +73,6 @@ export class DrawingService {
 				return 'Unsaved 1';
 			}
 
-			// Extract numbers from existing auto-save names
 			const numbers = autoSaveDrawings
 				.map((drawing) => {
 					const match = drawing.name.match(/^Unsaved (\d+)$/);

@@ -25,7 +25,6 @@ const DEFAULT_COLORS = [
 ];
 
 export class ColorService {
-	// Get all colors for a user (including default colors)
 	static async getUserColors(userId?: number): Promise<string[]> {
 		try {
 			let userColors: ColorPalette[] = [];
@@ -42,7 +41,6 @@ export class ColorService {
 					);
 			}
 
-			// Combine default colors with user colors
 			const customColors = userColors.map((c) => c.color);
 			return [...DEFAULT_COLORS, ...customColors];
 		} catch (error) {
@@ -51,7 +49,6 @@ export class ColorService {
 		}
 	}
 
-	// Add a new color for a user
 	static async addUserColor(color: string, userId?: number): Promise<boolean> {
 		try {
 			if (!userId) {
@@ -85,7 +82,6 @@ export class ColorService {
 		}
 	}
 
-	// Remove a user's custom color
 	static async removeUserColor(
 		color: string,
 		userId?: number
@@ -96,7 +92,6 @@ export class ColorService {
 				return false;
 			}
 
-			// Don't allow removal of default colors
 			if (DEFAULT_COLORS.includes(color)) {
 				console.warn('Cannot remove default color');
 				return false;
@@ -115,7 +110,6 @@ export class ColorService {
 		}
 	}
 
-	// Initialize default colors in database (run once)
 	static async initializeDefaultColors(): Promise<void> {
 		try {
 			const existingDefaults = await db

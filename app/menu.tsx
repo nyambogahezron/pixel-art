@@ -27,7 +27,6 @@ export default function MenuScreen() {
 		loadCurrentUser();
 	}, []);
 
-	// Reload user data when screen comes into focus (e.g., returning from auth screen)
 	useFocusEffect(
 		React.useCallback(() => {
 			loadCurrentUser();
@@ -73,7 +72,6 @@ export default function MenuScreen() {
 
 	const handleAccount = () => {
 		if (currentUser) {
-			// Show account management options
 			Alert.alert('Account', `Logged in as ${currentUser.name}`, [
 				{ text: 'View Profile', onPress: () => router.push('/profile') },
 				{
@@ -84,7 +82,6 @@ export default function MenuScreen() {
 				{ text: 'Cancel', style: 'cancel' },
 			]);
 		} else {
-			// Navigate to login/signup
 			router.push('/auth');
 		}
 	};
@@ -141,7 +138,6 @@ export default function MenuScreen() {
 			};
 		}
 
-		// Default for non-logged-in users
 		return {
 			name: 'Guest User',
 			email: 'Sign in to save your work',
@@ -273,7 +269,7 @@ const styles = StyleSheet.create({
 		color: '#333',
 	},
 	placeholder: {
-		width: 40, // Same width as back button for centering
+		width: 40,
 	},
 	content: {
 		flex: 1,
